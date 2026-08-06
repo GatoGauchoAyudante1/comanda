@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+
+/*
+| El sistema de diseño viene de los mockups (mockups-html/assets/app.css).
+| Ese archivo es la fuente de verdad del diseño: variables de color,
+| tipografía y componentes (.tcard, .kcard, .ticket, .row, .pcard, .modal…).
+| Ver docs/07-pantallas.md.
+*/
+@import './sistema.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+}
