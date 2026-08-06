@@ -23,14 +23,16 @@ return [
     'date'        => ':Attribute no es una fecha válida.',
     'different'   => ':Attribute y :other tienen que ser distintos.',
     'email'       => ':Attribute tiene que ser un correo válido.',
-    'exists'      => 'El valor elegido en :attribute no existe.',
-    'in'          => 'El valor elegido en :attribute no es válido.',
+    // Los nombres de campo llevan artículo ("el motivo"), así que los mensajes
+    // se redactan para que :Attribute funcione como sujeto de la oración.
+    'exists'      => ':Attribute que elegiste no existe.',
+    'in'          => ':Attribute que elegiste no es válido.',
     'integer'     => ':Attribute tiene que ser un número entero.',
-    'not_in'      => 'El valor elegido en :attribute no es válido.',
+    'not_in'      => ':Attribute que elegiste no es válido.',
     'numeric'     => ':Attribute tiene que ser un número.',
     'required'    => 'Falta completar :attribute.',
     'string'      => ':Attribute tiene que ser texto.',
-    'unique'      => 'Ya existe algo con ese :attribute.',
+    'unique'      => ':Attribute ya está en uso.',
 
     'min' => [
         'array'   => ':Attribute tiene que tener al menos :min elementos.',

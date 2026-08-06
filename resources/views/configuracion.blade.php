@@ -12,7 +12,7 @@
 @endsection
 
 @section('contenido')
-<div x-data="{ tarifa: null, zona: null, usuario: null }">
+<div x-data="{ tarifa: null, zona: null, usuario: null, mesas: false }">
 
     <div class="cat-split">
 
@@ -21,6 +21,10 @@
             <div class="sec" style="padding:6px 10px 8px;margin:0">Secciones</div>
             <a class="cat" href="#negocio">Datos del negocio</a>
             <a class="cat" href="#modulos">Módulos</a>
+            <a class="cat" href="#cocina">Cocina</a>
+            @if (Negocio::modulo('salon') || Negocio::modulo('pool'))
+                <a class="cat" href="#mesas">Mesas</a>
+            @endif
             @if (Negocio::modulo('pool'))
                 <a class="cat" href="#tarifas">Tarifas de pool</a>
             @endif
@@ -128,6 +132,96 @@
                 </div>
             </div>
 
+            {{-- ============ cocina ============ --}}
+            <div class="card mt16" id="cocina">
+                <div class="sec">
+                    Cocina
+                    <span class="meta">Quién puede marcar comandas como listas</span>
+                </div>
+
+                <p class="t-dim fs14 mb16">
+                    Marcar «listo» saca el plato del tablero y lo habilita a salir.
+                    Si alguien lo toca de más, el pedido se despacha sin estar hecho.
+                    Por eso, de fábrica <b class="t-white">sólo cocina puede</b>.
+                </p>
+
+                <form method="POST" action="{{ route('configuracion.cocina') }}">
+                    @csrf
+
+                    <div class="half mb12" style="opacity:.6">
+                        <span class="sw is-on" style="flex:none"></span>
+                        <div class="grow">
+                            <div class="fw6">Cocina</div>
+                            <div class="fs13 t-mute">Siempre puede. No se puede quitar.</div>
+                        </div>
+                    </div>
+
+                    @foreach ($rolesCocina as $clave => [$nombre, $detalle])
+                        <label class="half mb12" style="cursor:pointer">
+                            <input type="checkbox" name="roles[]" value="{{ $clave }}"
+                                   @checked(in_array($clave, $marcanListo, true))
+                                   style="width:18px;height:18px;accent-color:var(--green)">
+                            <div class="grow">
+                                <div class="fw6">{{ $nombre }}</div>
+                                <div class="fs13 t-mute">{{ $detalle }}</div>
+                            </div>
+                        </label>
+                    @endforeach
+
+                    <button class="btn btn-primary mt12" type="submit">Guardar</button>
+                </form>
+
+                <div class="notice mt16">
+                    <span class="dot dot-mute"></span>
+                    <div class="ds">
+                        Ver la pantalla de cocina y marcar listo son permisos distintos.
+                        Los que no pueden marcar igual la ven, para saber cómo viene el turno.
+                    </div>
+                </div>
+            </div>
+
+            {{-- ============ mesas ============ --}}
+            @if (Negocio::modulo('salon') || Negocio::modulo('pool'))
+                <div class="card mt16" id="mesas">
+                    <div class="sec">
+                        Mesas
+                        <span class="meta">{{ $mesas->flatten()->where('active', true)->count() }} activas</span>
+                    </div>
+
+                    @foreach (['pool' => 'Mesas de pool', 'salon' => 'Mesas de salón'] as $tipo => $titulo)
+                        @if (Negocio::modulo($tipo === 'pool' ? 'pool' : 'salon'))
+                            <div class="opt-lbl {{ $loop->first ? '' : 'mt16' }}">{{ $titulo }}</div>
+
+                            <div class="flex g8 wrap mb12">
+                                @forelse ($mesas->get($tipo, collect()) as $m)
+                                    <form method="POST" action="{{ route('configuracion.mesa.alternar', $m) }}">
+                                        @csrf
+                                        <button type="submit"
+                                                class="chip chip-lg {{ $m->active ? 'chip-green' : 'chip-line' }}"
+                                                style="cursor:pointer;border:none"
+                                                title="{{ $m->active ? 'Desactivar' : 'Activar' }}">
+                                            {{ $m->name }}
+                                        </button>
+                                    </form>
+                                @empty
+                                    <span class="t-mute fs14">Todavía no hay.</span>
+                                @endforelse
+                            </div>
+                        @endif
+                    @endforeach
+
+                    <button class="btn btn-dashed btn-block mt12" @click="mesas = true">+ Agregar mesas</button>
+
+                    <div class="notice mt16">
+                        <span class="dot dot-mute"></span>
+                        <div class="ds">
+                            Tocá una mesa para activarla o desactivarla. Desactivarla la saca del
+                            panel pero conserva todo su historial.
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             {{-- ============ tarifas de pool ============ --}}
             @if (Negocio::modulo('pool'))
                 <div class="card mt16" id="tarifas">
@@ -207,7 +301,8 @@
                 @foreach ($usuarios as $u)
                     @php
                         $json = json_encode(['id' => $u->id, 'name' => $u->name,
-                            'email' => $u->email, 'role' => $u->role],
+                            'email' => $u->email, 'role' => $u->role,
+                            'borrable' => (bool) $u->borrable, 'yo' => $u->id === auth()->id()],
                             JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
                     @endphp
                     <div class="row" @class(['off' => ! $u->active])>
@@ -215,21 +310,38 @@
                             <button type="button" class="link-editar" @click="usuario = {{ $json }}">
                                 {{ $u->name }}
                             </button>
-                            <div class="sb">{{ $u->email }}</div>
+                            <div class="sb">
+                                {{ $u->email }}
+                                @unless ($u->active) · <span class="t-amber">sin acceso</span> @endunless
+                            </div>
                         </div>
                         <span class="chip chip-line">{{ ucfirst($u->role) }}</span>
                         <form method="POST" action="{{ route('configuracion.usuario.alternar', $u) }}">
                             @csrf
                             <button type="submit" class="sw {{ $u->active ? 'is-on' : '' }}"
-                                    style="border:none;cursor:pointer"></button>
+                                    style="border:none;cursor:pointer"
+                                    title="{{ $u->active ? 'Quitarle el acceso' : 'Devolverle el acceso' }}"></button>
                         </form>
                     </div>
                 @endforeach
 
                 <button class="btn btn-dashed btn-block mt16"
-                        @click="usuario = { id: null, name: '', email: '', role: 'mozo' }">
+                        @click="usuario = { id: null, name: '', email: '', role: 'mozo', borrable: false, yo: false }">
                     + Nuevo usuario
                 </button>
+
+                <div class="notice mt16">
+                    <span class="dot dot-mute"></span>
+                    <div>
+                        <div class="tt">Quitar el acceso no es lo mismo que borrar</div>
+                        <div class="ds">
+                            El interruptor <b class="t-white">le corta el acceso al instante</b>, incluso
+                            si está usando el sistema en ese momento, y conserva todo su historial.
+                            Es lo que corresponde cuando alguien deja de trabajar.
+                            Borrar sólo se puede si nunca operó.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -291,6 +403,63 @@
                 <div class="grow"></div>
                 <button class="btn" type="button" @click="tarifa = null">Cancelar</button>
                 <button class="btn btn-primary" type="submit">Guardar</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="overlay" x-show="mesas" x-cloak @click.self="mesas = false" @keydown.escape.window="mesas = false">
+        <form class="modal" style="max-width:480px" method="POST" action="{{ route('configuracion.mesas') }}">
+            @csrf
+            <div class="modal-hd">
+                <div class="grow">
+                    <h2>Agregar mesas</h2>
+                    <div class="sub">Se crean numeradas, en tanda</div>
+                </div>
+                <button class="xbtn" type="button" @click="mesas = false">&times;</button>
+            </div>
+            <div class="modal-bd">
+                <div class="modal-sec grid2">
+                    <div class="field">
+                        <label for="m-tipo">Tipo</label>
+                        <select id="m-tipo" class="inp" name="type">
+                            @if (Negocio::modulo('pool'))
+                                <option value="pool">Mesa de pool</option>
+                            @endif
+                            @if (Negocio::modulo('salon'))
+                                <option value="salon">Mesa de salón</option>
+                            @endif
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="m-prefijo">Se llaman</label>
+                        <input id="m-prefijo" class="inp" name="prefijo" required maxlength="20"
+                               value="Pool" placeholder="Pool, Mesa, Barra…">
+                    </div>
+                </div>
+
+                <div class="modal-sec grid2">
+                    <div class="field">
+                        <label for="m-desde">Desde el número</label>
+                        <input id="m-desde" class="inp" type="number" min="1" max="200" name="desde" value="1" required>
+                    </div>
+                    <div class="field">
+                        <label for="m-hasta">Hasta el número</label>
+                        <input id="m-hasta" class="inp" type="number" min="1" max="200" name="hasta" value="8" required>
+                    </div>
+                </div>
+
+                <div class="notice mt16">
+                    <span class="dot dot-mute"></span>
+                    <div class="ds">
+                        Con «Pool» del 1 al 8 se crean Pool 1, Pool 2… Pool 8.
+                        Las que ya existan se saltean.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-ft">
+                <div class="grow"></div>
+                <button class="btn" type="button" @click="mesas = false">Cancelar</button>
+                <button class="btn btn-primary" type="submit">Crear</button>
             </div>
         </form>
     </div>
@@ -362,11 +531,31 @@
                 </div>
             </div>
             <div class="modal-ft">
-                <div class="grow"></div>
+                {{-- Borrar sólo aparece si el usuario nunca operó (R-37). --}}
+                <div class="grow">
+                    <template x-if="usuario?.id && usuario?.borrable && !usuario?.yo">
+                        <button class="btn btn-danger" type="submit" form="borrar-usuario"
+                                @click="return confirm('Se borra definitivamente. ¿Seguís?')">
+                            Borrar
+                        </button>
+                    </template>
+                    <template x-if="usuario?.id && !usuario?.borrable">
+                        <span class="fs13 t-mute">Ya operó: sólo se le puede quitar el acceso.</span>
+                    </template>
+                </div>
                 <button class="btn" type="button" @click="usuario = null">Cancelar</button>
                 <button class="btn btn-primary" type="submit">Guardar</button>
             </div>
         </form>
     </div>
+
+    {{-- Formulario aparte: no puede anidarse dentro del de edición. --}}
+    <form id="borrar-usuario" method="POST" x-show="false"
+          :action="usuario?.id
+              ? '{{ route('configuracion.usuario.eliminar', ['usuario' => '__ID__']) }}'.replace('__ID__', usuario.id)
+              : ''">
+        @csrf
+        @method('DELETE')
+    </form>
 </div>
 @endsection

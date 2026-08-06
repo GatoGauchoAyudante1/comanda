@@ -5,29 +5,33 @@
 @endphp
 
 @section('titulo', 'Pedidos')
+@section('alpine', '{ asignando: null, detalle: null }')
 
 @section('topbar')
     <div>
         <h1>Pedidos</h1>
-        <div class="sub">{{ $activos }} {{ $activos === 1 ? 'activo' : 'activos' }} · turno en curso</div>
+        <div class="sub">{{ $activos }} {{ $activos === 1 ? 'en curso' : 'en curso' }} · turno actual</div>
     </div>
     <div class="topbar-actions">
         <a class="btn hide-mobile" href="{{ route('cocina') }}">Ver cocina</a>
-        <a class="btn btn-primary" href="{{ route('pedidos.nuevo') }}">+ Nuevo pedido</a>
+        @if (\App\Support\Negocio::modulo('delivery'))
+            <a class="btn btn-primary" href="{{ route('pedidos.nuevo') }}">+ Nuevo pedido</a>
+        @endif
     </div>
 @endsection
 
 @section('contenido')
-{{-- Se refresca solo cada 15 s, sólo si la pestaña está a la vista (D-18). --}}
-<div x-data="{ asignando: null }"
-     x-init="setInterval(() => { if (!document.hidden && !asignando) location.reload() }, 15000)">
+{{-- Se refresca solo cada 15 s, salvo que haya un diálogo abierto (D-18). --}}
+<div x-init="setInterval(() => {
+        if (!document.hidden && !asignando && !detalle) location.reload()
+     }, 15000)">
 
     <div class="kanban" style="grid-template-columns:repeat(3,1fr)">
         @foreach ($columnas as $clave => $columna)
             <div>
                 <div class="kcol-hd">
                     <span class="t">{{ $columna['titulo'] }}</span>
-                    <span class="badge {{ $columna['pedidos']->isEmpty() ? '' : '' }}">{{ $columna['pedidos']->count() }}</span>
+                    <span class="badge">{{ $columna['pedidos']->count() }}</span>
                 </div>
 
                 <div class="kcol">
@@ -36,38 +40,37 @@
                             $minutos  = (int) $pedido->created_at->diffInMinutes(now());
                             $urgencia = $minutos >= 30 ? 'late' : ($minutos >= 15 ? 'warn' : 'ok');
                             $entrega  = $pedido->delivery;
-                            $proximo  = $avanzar->siguiente($pedido);
+                            $esMesa   = $pedido->esMesa() || $pedido->type === 'mostrador';
+                            $proximo  = $esMesa ? null : $avanzar->siguiente($pedido);
                         @endphp
 
                         <div class="kcard {{ $urgencia }}">
+
                             <div class="between">
                                 <span class="fw6 fs17">#{{ $pedido->number }}</span>
                                 <span class="fw6">@plata($pedido->total)</span>
                             </div>
 
-                            <div class="fs13 t-dim mt4">
-                                {{ $entrega?->customer?->name ?: 'Sin nombre' }}
-                                @if ($pedido->type === 'retiro')
-                                    · <span class="t-white">retira</span>
-                                @elseif ($entrega?->zone)
-                                    · {{ $entrega->zone->name }}
-                                @endif
-                            </div>
+                            {{-- De dónde viene y a dónde va --}}
+                            <x-origen :orden="$pedido" class="mt8" />
 
-                            <div class="fs13 t-mute mt4">
-                                {{ $pedido->items->sum('qty') }} productos
-                                @if ($entrega?->address) · {{ $entrega->address->street }} @endif
-                            </div>
+                            @if ($entrega?->customer?->name)
+                                <div class="fs13 t-dim mt4">{{ $entrega->customer->name }}</div>
+                            @endif
 
                             <div class="flex g8 mt12 wrap">
                                 <span class="chip chip-{{ ['ok' => 'green', 'warn' => 'amber', 'late' => 'red'][$urgencia] }}">
                                     {{ $minutos }} min
                                 </span>
 
-                                @if ($entrega?->payment_method === 'cash')
-                                    <span class="chip chip-line">Efectivo</span>
-                                @else
-                                    <span class="chip chip-line">Ya pagó</span>
+                                <span class="chip chip-line">
+                                    {{ $pedido->items->sum('qty') }} {{ $pedido->items->sum('qty') === 1 ? 'ítem' : 'ítems' }}
+                                </span>
+
+                                @if (! $esMesa)
+                                    <span class="chip chip-line">
+                                        {{ $entrega?->payment_method === 'cash' ? 'Cobrar en efectivo' : 'Ya pagó' }}
+                                    </span>
                                 @endif
 
                                 @if ($entrega?->driver)
@@ -75,12 +78,15 @@
                                 @endif
                             </div>
 
-                            @if ($proximo)
-                                <div class="flex g8 mt12">
+                            <div class="flex g8 mt12">
+                                <button class="btn btn-sm grow" @click="detalle = {{ $pedido->id }}">
+                                    Ver comanda
+                                </button>
+
+                                @if ($proximo)
                                     @if ($proximo === 'on_route' && ! $entrega?->driver_id)
-                                        <button class="btn btn-sm btn-primary grow"
-                                                @click="asignando = {{ $pedido->id }}">
-                                            Asignar repartidor
+                                        <button class="btn btn-sm btn-primary grow" @click="asignando = {{ $pedido->id }}">
+                                            Asignar
                                         </button>
                                     @else
                                         <form method="POST" action="{{ route('pedidos.avanzar', $pedido) }}" class="grow">
@@ -91,59 +97,175 @@
                                             </button>
                                         </form>
                                     @endif
+                                @elseif ($esMesa && $clave === 'ready')
+                                    <form method="POST" action="{{ route('pedidos.servido', $pedido) }}" class="grow">
+                                        @csrf
+                                        <button class="btn btn-sm btn-primary btn-block" type="submit">Servido</button>
+                                    </form>
+                                @elseif ($esMesa && $pedido->tableSession)
+                                    <a class="btn btn-sm grow" href="{{ route('mesa', $pedido->tableSession) }}">Ver mesa</a>
+                                @endif
 
-                                    @if ($anterior = $avanzar->anterior($pedido))
-                                        <form method="POST" action="{{ route('pedidos.avanzar', $pedido) }}">
-                                            @csrf
-                                            <input type="hidden" name="estado" value="{{ $anterior }}">
-                                            <button class="btn btn-sm" type="submit" title="Volver un paso">&larr;</button>
-                                        </form>
-                                    @endif
-                                </div>
-                            @endif
+                                @if ($proximo && $anterior = $avanzar->anterior($pedido))
+                                    <form method="POST" action="{{ route('pedidos.avanzar', $pedido) }}">
+                                        @csrf
+                                        <input type="hidden" name="estado" value="{{ $anterior }}">
+                                        <button class="btn btn-sm" type="submit" title="Volver un paso">&larr;</button>
+                                    </form>
+                                @endif
+                            </div>
 
-                            {{-- asignar repartidor --}}
-                            <div class="overlay" x-show="asignando === {{ $pedido->id }}" x-cloak
-                                 @click.self="asignando = null" @keydown.escape.window="asignando = null">
-                                <form class="modal" style="max-width:420px" method="POST"
-                                      action="{{ route('pedidos.avanzar', $pedido) }}">
-                                    @csrf
-                                    <input type="hidden" name="estado" value="on_route">
-
+                            {{-- ============ comanda ============ --}}
+                            <div class="overlay" x-show="detalle === {{ $pedido->id }}" x-cloak
+                                 @click.self="detalle = null" @keydown.escape.window="detalle = null">
+                                <div class="modal" style="max-width:520px">
                                     <div class="modal-hd">
                                         <div class="grow">
-                                            <h2>Pedido #{{ $pedido->number }}</h2>
-                                            <div class="sub">¿Quién lo lleva?</div>
+                                            <h2>Comanda #{{ $pedido->number }}</h2>
+                                            <div class="sub">
+                                                Tomada {{ $pedido->created_at->format('H:i') }}
+                                                · hace {{ $minutos }} min
+                                            </div>
                                         </div>
-                                        <button class="xbtn" type="button" @click="asignando = null">&times;</button>
+                                        <button class="xbtn" type="button" @click="detalle = null">&times;</button>
                                     </div>
 
                                     <div class="modal-bd">
-                                        <div class="opt-row opt-col">
-                                            @forelse ($repartidores as $r)
-                                                <button type="submit" name="driver_id" value="{{ $r->id }}"
-                                                        class="opt" style="height:56px">
-                                                    <span>{{ $r->name }}</span>
-                                                </button>
-                                            @empty
-                                                <p class="t-mute fs14">No hay repartidores cargados.</p>
-                                            @endforelse
-                                        </div>
+                                        <x-origen :orden="$pedido" class="mb16" />
 
-                                        @if ($entrega?->payment_method === 'cash')
+                                        @if ($entrega?->address)
+                                            <div class="card card-tight mb16">
+                                                <div class="fw6">{{ $entrega->address->completa() }}</div>
+                                                <div class="fs13 t-mute mt4">
+                                                    {{ $entrega->customer?->name }}
+                                                    @if ($entrega->customer?->phone) · {{ $entrega->customer->phone }} @endif
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        <div class="sec">Qué lleva</div>
+                                        @foreach ($pedido->items as $item)
+                                            <div class="row">
+                                                <span class="qty">{{ $item->qty }}</span>
+                                                <div class="grow">
+                                                    <div class="nm">
+                                                        {{ $item->product->name }}
+                                                        @if ($item->variant) {{ $item->variant->name }} @endif
+                                                    </div>
+                                                    @if ($item->notes)
+                                                        <div class="sb t-amber">{{ $item->notes }}</div>
+                                                    @endif
+                                                    <div class="sb">
+                                                        @switch($item->status)
+                                                            @case('kitchen') <span class="t-amber">en cocina</span> @break
+                                                            @case('ready')   <span class="t-green">listo</span> @break
+                                                            @case('delivered') entregado @break
+                                                            @default pendiente
+                                                        @endswitch
+                                                        · @plata($item->unit_price) c/u
+                                                    </div>
+                                                </div>
+                                                <span class="pr">@plata($item->subtotal())</span>
+                                            </div>
+                                        @endforeach
+
+                                        @if ($pedido->notes)
                                             <div class="notice notice-amber mt16">
                                                 <span class="dot dot-amber"></span>
+                                                <div class="ds t-white">{{ $pedido->notes }}</div>
+                                            </div>
+                                        @endif
+
+                                        <div class="hr"></div>
+                                        <div class="lv"><span class="k">Productos</span><span class="v">@plata($pedido->items_total)</span></div>
+                                        @if ($pedido->delivery_fee > 0)
+                                            <div class="lv"><span class="k">Envío</span><span class="v">@plata($pedido->delivery_fee)</span></div>
+                                        @endif
+                                        @if ($pedido->time_amount > 0)
+                                            <div class="lv"><span class="k">Tiempo de mesa</span><span class="v">@plata($pedido->time_amount)</span></div>
+                                        @endif
+                                        <div class="hr-strong"></div>
+                                        <div class="between">
+                                            <span class="t-dim">Total</span>
+                                            <span class="money m-lg">@plata($pedido->total)</span>
+                                        </div>
+
+                                        @if (! $esMesa)
+                                            <div class="notice mt16 {{ $entrega?->payment_method === 'cash' ? 'notice-amber' : 'notice-green' }}">
+                                                <span class="dot {{ $entrega?->payment_method === 'cash' ? 'dot-amber' : '' }}"></span>
                                                 <div>
-                                                    <div class="tt">Cobra @plata($pedido->total) en efectivo</div>
-                                                    @if ($entrega->vuelto() > 0)
-                                                        <div class="ds">Llevá @plata($entrega->vuelto()) de vuelto.</div>
+                                                    <div class="tt">
+                                                        {{ $entrega?->payment_method === 'cash'
+                                                            ? 'Cobrar ' . \App\Support\Plata::format($pedido->total) . ' en efectivo'
+                                                            : 'Ya está pagado' }}
+                                                    </div>
+                                                    @if ($entrega?->vuelto() > 0)
+                                                        <div class="ds">Llevar @plata($entrega->vuelto()) de vuelto.</div>
                                                     @endif
                                                 </div>
                                             </div>
                                         @endif
+
+                                        {{-- Quién hizo qué con este pedido (docs/11-auditoria.md) --}}
+                                        <div class="sec mt26">Historial</div>
+                                        @include('partials.bitacora', [
+                                            'eventos' => \App\Support\Bitacora::de($pedido),
+                                        ])
                                     </div>
-                                </form>
+
+                                    <div class="modal-ft">
+                                        <a class="btn grow" href="{{ route('ticket', $pedido) }}" target="_blank">Imprimir</a>
+                                        <button class="btn btn-primary" type="button" @click="detalle = null">Cerrar</button>
+                                    </div>
+                                </div>
                             </div>
+
+                            {{-- ============ asignar repartidor ============ --}}
+                            @if (! $esMesa)
+                                <div class="overlay" x-show="asignando === {{ $pedido->id }}" x-cloak
+                                     @click.self="asignando = null" @keydown.escape.window="asignando = null">
+                                    <form class="modal" style="max-width:420px" method="POST"
+                                          action="{{ route('pedidos.avanzar', $pedido) }}">
+                                        @csrf
+                                        <input type="hidden" name="estado" value="on_route">
+
+                                        <div class="modal-hd">
+                                            <div class="grow">
+                                                <h2>Pedido #{{ $pedido->number }}</h2>
+                                                <div class="sub">¿Quién lo lleva?</div>
+                                            </div>
+                                            <button class="xbtn" type="button" @click="asignando = null">&times;</button>
+                                        </div>
+
+                                        <div class="modal-bd">
+                                            <div class="opt-row opt-col">
+                                                @forelse ($repartidores as $r)
+                                                    <button type="submit" name="driver_id" value="{{ $r->id }}"
+                                                            class="opt" style="height:56px">
+                                                        <span>{{ $r->name }}</span>
+                                                    </button>
+                                                @empty
+                                                    <p class="t-mute fs14">
+                                                        No hay repartidores cargados. Agregalos en Ajustes → Usuarios.
+                                                    </p>
+                                                @endforelse
+                                            </div>
+
+                                            @if ($entrega?->payment_method === 'cash')
+                                                <div class="notice notice-amber mt16">
+                                                    <span class="dot dot-amber"></span>
+                                                    <div>
+                                                        <div class="tt">Cobra @plata($pedido->total) en efectivo</div>
+                                                        @if ($entrega->vuelto() > 0)
+                                                            <div class="ds">Llevá @plata($entrega->vuelto()) de vuelto.</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </form>
+                                </div>
+                            @endif
                         </div>
                     @empty
                         <div class="tcard tcard--free" style="min-height:90px">
@@ -159,7 +281,7 @@
         <div class="dock-inner">
             <div class="grow flex g18 wrap">
                 <div>
-                    <div class="fs13 t-mute">Vendido hoy</div>
+                    <div class="fs13 t-mute">Delivery y retiro cobrados hoy</div>
                     <div class="money m-md mt4">@plata($delDia->sum('total'))</div>
                 </div>
                 <div class="hide-mobile" style="width:1px;height:38px;background:var(--line)"></div>

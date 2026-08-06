@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CargarConsumos;
 use App\Models\Category;
 use App\Models\TableSession;
+use App\Support\Bitacora;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,14 @@ class ConsumoController extends Controller
         $aviso = $linea->status === 'kitchen'
             ? 'Ítem quitado. Avisale a cocina, ya lo tenían en pantalla.'
             : 'Ítem quitado.';
+
+        Bitacora::registrar(
+            'item.quitado',
+            "Quitó {$linea->qty}x {$linea->product->name} de la cuenta"
+                . ($linea->status === 'kitchen' ? ' · ya estaba en cocina' : ''),
+            $sesion->order,
+            ['producto' => $linea->product->name, 'estado' => $linea->status],
+        );
 
         $linea->delete();
         $sesion->order->refresh()->recalcular();

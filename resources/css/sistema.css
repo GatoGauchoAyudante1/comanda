@@ -8,6 +8,17 @@
    ============================================================ */
 
 :root{
+  /*
+  | Le avisa al navegador que la interfaz es oscura.
+  |
+  | Sin esto, todo lo que dibuja el sistema operativo y no nuestro CSS sale en
+  | claro: el desplegable de los <select>, los selectores de fecha y hora, el
+  | autocompletado, las barras de scroll nativas. En el caso de los select el
+  | resultado era texto blanco sobre fondo blanco: sólo se leía la opción
+  | resaltada.
+  */
+  color-scheme:dark;
+
   /* superficies */
   --bg:#070908;
   --panel:#0D1110;
@@ -77,6 +88,8 @@ input{font:inherit}
   border-right:1px solid var(--line);
   display:flex;flex-direction:column;align-items:center;
   padding:18px 0 20px;gap:6px;
+  /* El contenedor no crece: lo que se desborda scrollea dentro de .rail-nav. */
+  overflow:hidden;
 }
 .brand{
   width:50px;height:50px;border-radius:15px;
@@ -84,7 +97,65 @@ input{font:inherit}
   display:grid;place-items:center;
   font-weight:700;font-size:24px;flex:none;margin-bottom:16px;
 }
-.rail-nav{display:flex;flex-direction:column;gap:4px;width:100%;align-items:center}
+/*
+| El dueño ve hasta 9 ítems. En una pantalla de portátil eso no entra en 100vh,
+| y como `.app` recorta lo que se desborda, los últimos quedaban inalcanzables.
+| La lista scrollea sola; el logo y el usuario quedan fijos arriba y abajo.
+*/
+.rail-nav{
+  display:flex;flex-direction:column;gap:4px;width:100%;align-items:center;
+  flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:none;
+}
+.rail-nav::-webkit-scrollbar{width:0;height:0}
+
+/*
+| Señal de que hay más ítems fuera de vista.
+|
+| El borde de la lista se desvanece del lado donde queda contenido. Se hace
+| con `mask-image` y no con un degradado encima porque así se alinea solo con
+| la zona que scrollea, sin depender de la altura del logo ni del usuario.
+|
+| Las clases las pone marcarDesbordeDelRail() en app.js.
+*/
+.rail.mas-abajo .rail-nav{
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent);
+          mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent);
+}
+.rail.mas-arriba .rail-nav{
+  -webkit-mask-image:linear-gradient(to top,#000 calc(100% - 30px),transparent);
+          mask-image:linear-gradient(to top,#000 calc(100% - 30px),transparent);
+}
+.rail.mas-arriba.mas-abajo .rail-nav{
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 30px,#000 calc(100% - 30px),transparent);
+          mask-image:linear-gradient(to bottom,transparent,#000 30px,#000 calc(100% - 30px),transparent);
+}
+
+/* La flecha: el degradado solo es demasiado sutil para descubrirlo. */
+.rail-mas{
+  display:none;flex:none;width:100%;height:18px;margin-top:-16px;
+  color:var(--txt-2);pointer-events:none;z-index:3;
+}
+.rail-mas svg{width:16px;height:16px;stroke-width:2.2}
+.rail.mas-abajo .rail-mas{display:grid;place-items:center}
+
+@media (max-width:900px){
+  /* En la barra inferior el desborde es de costado. */
+  .rail-mas{display:none!important}
+
+  .rail.mas-abajo .rail-nav{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+            mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+  }
+  .rail.mas-arriba .rail-nav{
+    -webkit-mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent);
+            mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent);
+  }
+  .rail.mas-arriba.mas-abajo .rail-nav{
+    -webkit-mask-image:linear-gradient(to right,transparent,#000 28px,#000 calc(100% - 28px),transparent);
+            mask-image:linear-gradient(to right,transparent,#000 28px,#000 calc(100% - 28px),transparent);
+  }
+}
 .rail-item{
   width:60px;padding:9px 0 7px;border-radius:14px;
   display:flex;flex-direction:column;align-items:center;gap:5px;
@@ -94,7 +165,12 @@ input{font:inherit}
 .rail-item svg{width:22px;height:22px;stroke-width:1.7}
 .rail-item:hover{color:var(--txt-2);background:var(--panel)}
 .rail-item.is-on{color:var(--green);background:var(--green-dim)}
-.rail-user{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--txt-3);font-size:11.5px}
+.rail-user{
+  flex:none;margin-top:8px;padding-top:10px;width:100%;
+  border-top:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  color:var(--txt-3);font-size:11.5px;
+}
 .rail-user svg{width:22px;height:22px;stroke-width:1.7}
 .rail-user button{border:none;background:none;cursor:pointer;font:inherit}
 .rail-user .rail-item:hover{color:var(--red);background:var(--red-dim)}
@@ -142,13 +218,22 @@ input{font:inherit}
   .app{grid-template-columns:1fr}
   .rail{
     position:fixed;left:0;right:0;bottom:0;top:auto;height:68px;
-    flex-direction:row;justify-content:space-around;align-items:center;
-    padding:0 6px;border-right:none;border-top:1px solid var(--line);
+    flex-direction:row;align-items:center;
+    padding:0;border-right:none;border-top:1px solid var(--line);
     background:var(--bg);z-index:60;
   }
   .brand,.rail-user{display:none}
-  .rail-nav{flex-direction:row;justify-content:space-around;width:100%}
-  .rail-item{width:auto;flex:1;max-width:90px;padding:6px 0}
+  /*
+  | Con muchos ítems no entran repartidos: quedarían de 43 px y sin texto
+  | legible. La barra scrollea de costado. `safe center` los centra cuando
+  | entran y evita que se recorte el primero cuando no.
+  */
+  .rail-nav{
+    flex-direction:row;justify-content:safe center;align-items:center;
+    width:100%;height:100%;padding:0 6px;
+    overflow-x:auto;overflow-y:hidden;
+  }
+  .rail-item{width:70px;flex:none;padding:6px 0}
   .main{height:100vh;padding-bottom:68px}
   .topbar{padding:16px 18px 14px;flex-wrap:wrap}
   .topbar h1{font-size:27px;font-weight:700}
@@ -432,6 +517,19 @@ textarea.inp{height:auto;padding:13px 15px;resize:vertical;min-height:74px;font-
 select.inp{appearance:none;cursor:pointer;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238B948F' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
+
+/*
+| Las opciones del desplegable, explícitas.
+|
+| `color-scheme: dark` ya las arregla en los navegadores modernos, pero acá se
+| deja escrito: es el detalle que hace ilegible un formulario entero y no se
+| descubre hasta que alguien intenta elegir algo.
+*/
+select.inp option,
+select.inp optgroup{
+  background:var(--panel-2);
+  color:var(--txt);
+}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 @media (max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
@@ -516,6 +614,29 @@ select.inp{appearance:none;cursor:pointer;
   display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:12px;
   background:var(--panel);border:1px solid var(--line-2);
 }
+
+/* ============================================================
+   BITÁCORA · línea de tiempo de eventos
+   ============================================================ */
+.evento{display:flex;gap:12px;align-items:stretch}
+.evento-hora{
+  flex:none;width:52px;text-align:right;padding-top:2px;
+  font-size:13px;font-weight:600;color:var(--txt-2);font-variant-numeric:tabular-nums;
+}
+.evento-linea{flex:none;width:12px;display:flex;flex-direction:column;align-items:center}
+.evento-punto{
+  width:10px;height:10px;border-radius:50%;flex:none;margin-top:6px;
+  background:var(--txt-3);box-shadow:0 0 0 3px var(--bg);
+}
+.evento-linea::after{content:"";flex:1;width:2px;background:var(--line);margin-top:2px}
+.evento:last-child .evento-linea::after{display:none}
+.evento-cuerpo{flex:1;min-width:0;padding-bottom:18px}
+
+.punto-green{background:var(--green)}
+.punto-amber{background:var(--amber)}
+.punto-blue{background:var(--blue)}
+.punto-red{background:var(--red)}
+.punto-line{background:var(--txt-3)}
 
 /* ============================================================
    ARQUEO DE BILLETES

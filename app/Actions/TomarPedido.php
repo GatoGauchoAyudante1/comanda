@@ -9,6 +9,7 @@ use App\Models\Delivery;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Zone;
+use App\Support\Bitacora;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -87,6 +88,23 @@ class TomarPedido
                 'payment_method' => $metodoPago,
                 'pays_with'      => $metodoPago === 'cash' ? $pagaCon : null,
             ]);
+
+            Bitacora::registrar(
+                'pedido.tomado',
+                ($tipo === 'delivery' ? 'Tomó un delivery' : 'Tomó un pedido para retirar')
+                    . " de {$cliente->name} ({$cliente->phone})"
+                    . ($direccion ? " · {$direccion->completa()}" : '')
+                    . ($zona ? " · {$zona->name}" : '')
+                    . ' · paga con ' . ($metodoPago === 'cash' ? 'efectivo' : $metodoPago),
+                $orden,
+                [
+                    'cliente'  => $cliente->name,
+                    'telefono' => $cliente->phone,
+                    'zona'     => $zona?->name,
+                    'metodo'   => $metodoPago,
+                ],
+                $usuario,
+            );
 
             ($this->cargarConsumos)($orden, $lineas);
 

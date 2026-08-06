@@ -4,6 +4,8 @@ namespace App\Actions;
 
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Bitacora;
+use App\Support\Plata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -52,6 +54,17 @@ class AnularMesa
                 'cancelled_at'  => Carbon::now(),
                 'closed_at'     => Carbon::now(),
             ]);
+
+            Bitacora::registrar(
+                'mesa.anulada',
+                'Anuló la cuenta por ' . Plata::format($orden->total)
+                    . ($sesion ? " · {$sesion->table->name}" : '')
+                    . " · motivo: «{$motivo}»"
+                    . ($seConsumio ? ' · se consumió, va como merma' : ' · error de carga, sin merma'),
+                $orden,
+                ['motivo' => $motivo, 'se_consumio' => $seConsumio, 'total' => $orden->total],
+                $usuario,
+            );
 
             // Lo que se sirvió y no se cobró es merma, no una venta.
             // Si la mesa se abrió por error y no se consumió nada, no toca el stock.

@@ -67,6 +67,39 @@ class Negocio
         return (bool) config("negocio.modulos.{$nombre}", false);
     }
 
+    /**
+     * Roles que pueden marcar una comanda como lista.
+     *
+     * Por defecto SÓLO cocina. Marcar listo de más hace que un plato salga
+     * del tablero sin estar hecho, y el pedido se despacha vacío.
+     *
+     * `cocina` no se puede sacar de la lista: sin eso nadie podría trabajar.
+     *
+     * @return array<int, string>
+     */
+    public static function rolesQueMarcanListo(): array
+    {
+        $guardado = self::settings()['kitchen.ready_roles'] ?? null;
+        $extra    = $guardado ? json_decode($guardado, true) : [];
+
+        if (! is_array($extra)) {
+            $extra = [];
+        }
+
+        return array_values(array_unique(['cocina', ...$extra]));
+    }
+
+    /** El dueño siempre puede: es quien configura esto. */
+    public static function puedeMarcarListo(?\App\Models\User $usuario): bool
+    {
+        if (! $usuario) {
+            return false;
+        }
+
+        return $usuario->role === 'dueno'
+            || in_array($usuario->role, self::rolesQueMarcanListo(), true);
+    }
+
     /** @return array<string, bool> */
     public static function modulos(): array
     {

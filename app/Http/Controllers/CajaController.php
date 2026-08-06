@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CerrarCaja;
 use App\Models\CashMovement;
 use App\Models\CashSession;
+use App\Support\Bitacora;
 use App\Support\Plata;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -41,12 +42,20 @@ class CajaController extends Controller
             'opening_float' => ['required', 'numeric', 'min:0', 'max:99999999'],
         ]);
 
-        CashSession::create([
+        $caja = CashSession::create([
             'opened_by'     => $request->user()->id,
             'opened_at'     => Carbon::now(),
             // El formulario recibe pesos; en la base van centavos (R-31).
             'opening_float' => (int) round($datos['opening_float'] * 100),
         ]);
+
+        Bitacora::olvidar();   // el dia operativo lo define este turno
+        Bitacora::registrar(
+            'caja.abierta',
+            'Abrió el turno con un fondo de ' . Plata::format($caja->opening_float),
+            $caja,
+            ['fondo' => $caja->opening_float],
+        );
 
         return redirect()->route('panel')->with('ok', 'Turno abierto.');
     }
@@ -102,13 +111,21 @@ class CajaController extends Controller
             'concept' => ['required', 'string', 'max:120'],
         ]);
 
-        CashMovement::create([
+        $movimiento = CashMovement::create([
             'cash_session_id' => $caja->id,
             'user_id'         => $request->user()->id,
             'type'            => $datos['type'],
             'amount'          => (int) round($datos['amount'] * 100),
             'concept'         => $datos['concept'],
         ]);
+
+        Bitacora::registrar(
+            'caja.movimiento',
+            ['expense' => 'Registró un gasto de ', 'withdrawal' => 'Retiró ', 'deposit' => 'Ingresó '][$datos['type']]
+                . Plata::format($movimiento->amount) . " · {$movimiento->concept}",
+            $caja,
+            ['tipo' => $datos['type'], 'importe' => $movimiento->amount],
+        );
 
         return back()->with('ok', 'Movimiento registrado.');
     }

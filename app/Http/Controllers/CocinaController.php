@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Support\Bitacora;
+use App\Support\Negocio;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Carbon;
+use Illuminate\Http\Request;
 
 /**
  * KDS: la pantalla de la tablet colgada en la cocina.
@@ -14,7 +16,7 @@ use Illuminate\Support\Carbon;
  */
 class CocinaController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $comandas = Order::query()
             ->whereIn('status', ['open', 'kitchen'])
@@ -27,14 +29,32 @@ class CocinaController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        return view('cocina', ['comandas' => $comandas]);
+        return view('cocina', [
+            'comandas'    => $comandas,
+            'puedeMarcar' => Negocio::puedeMarcarListo($request->user()),
+        ]);
     }
 
-    /** Cocina marca la comanda entera como lista. */
-    public function listo(Order $orden): RedirectResponse
+    /**
+     * Marca la comanda entera como lista.
+     *
+     * Ver la pantalla y marcar listo son permisos distintos: el cajero mira
+     * cómo viene la cocina, pero por defecto no toca nada. Ver R-36.
+     */
+    public function listo(Request $request, Order $orden): RedirectResponse
     {
+        abort_unless(
+            Negocio::puedeMarcarListo($request->user()),
+            403,
+            'Tu rol no puede marcar comandas como listas.',
+        );
+
+        $pendientes = $orden->items()->where('status', 'kitchen')->with('product')->get();
+
         $orden->items()->where('status', 'kitchen')->update([
-            'status' => 'ready',
+            'status'   => 'ready',
+            'ready_by' => $request->user()->id,
+            'ready_at' => now(),
         ]);
 
         // Los pedidos de delivery avanzan de estado; las mesas siguen abiertas
@@ -43,12 +63,23 @@ class CocinaController extends Controller
             $orden->update(['status' => 'ready']);
         }
 
+        Bitacora::registrar(
+            'item.listo',
+            'Cocina marcó listo: ' . $pendientes->map(
+                fn ($i) => "{$i->qty}x {$i->product->name}"
+            )->join(', '),
+            $orden,
+            ['items' => $pendientes->pluck('id')],
+        );
+
         return back()->with('ok', "Comanda #{$orden->number} lista.");
     }
 
     /** Un solo ítem, cuando la comanda sale en tandas. */
-    public function itemListo(OrderItem $item): RedirectResponse
+    public function itemListo(Request $request, OrderItem $item): RedirectResponse
     {
+        abort_unless(Negocio::puedeMarcarListo($request->user()), 403);
+
         $item->update(['status' => 'ready']);
 
         return back();

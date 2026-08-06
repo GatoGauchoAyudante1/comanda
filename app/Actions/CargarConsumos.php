@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Support\Bitacora;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -30,7 +31,8 @@ class CargarConsumos
         }
 
         return DB::transaction(function () use ($orden, $lineas) {
-            $aCocina = [];
+            $aCocina  = [];
+            $cargados = [];
 
             foreach ($lineas as $linea) {
                 $producto = Product::find($linea['product_id']);
@@ -56,6 +58,10 @@ class CargarConsumos
                     'sent_to_kitchen_at' => $producto->goes_to_kitchen ? Carbon::now() : null,
                 ]);
 
+                $cargados[] = "{$cantidad}x {$producto->name}"
+                    . ($variante ? " {$variante->name}" : '')
+                    . (! empty($linea['notes']) ? " ({$linea['notes']})" : '');
+
                 if ($producto->goes_to_kitchen) {
                     $aCocina[] = $item->id;
                 }
@@ -63,7 +69,23 @@ class CargarConsumos
 
             $orden->refresh()->recalcular();
 
+            if ($cargados !== []) {
+                Bitacora::registrar(
+                    'item.cargado',
+                    'Cargó ' . implode(', ', $cargados),
+                    $orden,
+                    ['items' => $cargados, 'a_cocina' => count($aCocina)],
+                );
+            }
+
             if ($aCocina !== []) {
+                Bitacora::registrar(
+                    'pedido.enviado_cocina',
+                    count($aCocina) . ' ' . (count($aCocina) === 1 ? 'ítem enviado' : 'ítems enviados') . ' a cocina',
+                    $orden,
+                    ['item_ids' => $aCocina],
+                );
+
                 PedidoEnviadoACocina::dispatch($orden, $aCocina);
             }
 

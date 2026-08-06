@@ -33,6 +33,48 @@ function arrancarRelojes() {
 
 document.addEventListener('DOMContentLoaded', arrancarRelojes);
 
+/*
+| Avisar que la barra lateral tiene más ítems fuera de vista.
+|
+| La lista scrollea pero le ocultamos la barra de scroll para no ensuciar los
+| 94 px de ancho, así que sin esto no hay ninguna señal: el usuario cree que
+| los ítems que ve son todos los que hay.
+|
+| Marca `.mas-arriba` y `.mas-abajo` en el rail; el CSS se encarga del
+| degradado y la flecha. Funciona igual en vertical (escritorio) y en
+| horizontal (la barra inferior del celular).
+*/
+function marcarDesbordeDelRail() {
+    const nav = document.querySelector('.rail-nav');
+
+    if (! nav) return;
+
+    const rail = nav.closest('.rail');
+
+    const actualizar = () => {
+        const horizontal = nav.scrollWidth > nav.clientWidth + 4;
+
+        const [pos, max] = horizontal
+            ? [nav.scrollLeft, nav.scrollWidth - nav.clientWidth]
+            : [nav.scrollTop,  nav.scrollHeight - nav.clientHeight];
+
+        // 4 px de tolerancia: el redondeo de subpíxeles deja restos.
+        rail.classList.toggle('mas-arriba', max > 4 && pos > 4);
+        rail.classList.toggle('mas-abajo',  max > 4 && pos < max - 4);
+    };
+
+    actualizar();
+    nav.addEventListener('scroll', actualizar, { passive: true });
+    window.addEventListener('resize', actualizar);
+
+    // Al cambiar de pantalla el menú puede tener otra cantidad de ítems.
+    if (window.ResizeObserver) {
+        new ResizeObserver(actualizar).observe(nav);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', marcarDesbordeDelRail);
+
 document.addEventListener('click', e => {
 
     // Grupos de opción excluyente: sólo una prendida a la vez.

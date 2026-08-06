@@ -37,6 +37,19 @@
             @endif
         </div>
         <span class="money m-md">{{ now()->format('H:i') }}</span>
+
+        {{--
+          Esta pantalla no tiene barra lateral: vive en una tablet colgada en
+          la cocina y todo el espacio es para las comandas.
+
+          Pero al cajero y al dueño que entran desde «Ver cocina» hay que darles
+          una puerta de vuelta, o quedan atrapados y la única salida es cerrar
+          la sesión.
+        --}}
+        @if (auth()->user()->rutaInicio() !== 'cocina')
+            <a class="btn btn-sm" href="{{ route(auth()->user()->rutaInicio()) }}">&larr; Volver</a>
+        @endif
+
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button class="btn btn-sm" type="submit">Salir</button>
@@ -53,6 +66,19 @@
                 <div class="ds t-white">{{ session('ok') ?? session('error') }}</div>
             </div>
         @endif
+
+        @unless ($puedeMarcar)
+            <div class="notice mb16">
+                <span class="dot dot-mute"></span>
+                <div>
+                    <div class="tt">Estás mirando, no operando</div>
+                    <div class="ds">
+                        Tu rol puede ver cómo viene la cocina pero no marcar comandas listas.
+                        El dueño configura quién puede en Ajustes → Cocina.
+                    </div>
+                </div>
+            </div>
+        @endunless
 
         @if ($comandas->isEmpty())
             <div class="col" style="align-items:center;justify-content:center;height:60vh;gap:12px">
@@ -100,10 +126,17 @@
                         </div>
 
                         <div class="ft">
-                            <form method="POST" action="{{ route('cocina.listo', $orden) }}">
-                                @csrf
-                                <button class="btn btn-primary btn-lg btn-block" type="submit">LISTO</button>
-                            </form>
+                            @if ($puedeMarcar)
+                                <form method="POST" action="{{ route('cocina.listo', $orden) }}">
+                                    @csrf
+                                    <button class="btn btn-primary btn-lg btn-block" type="submit">LISTO</button>
+                                </form>
+                            @else
+                                {{-- Ver la cocina y marcar listo son permisos distintos (R-36). --}}
+                                <div class="btn btn-lg btn-block" style="opacity:.35;cursor:default">
+                                    En preparación
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach

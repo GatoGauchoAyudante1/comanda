@@ -4,6 +4,10 @@
 
 @section('titulo', 'Stock')
 
+{{-- El estado vive en el layout para que los botones de la barra superior
+     también queden dentro del alcance de Alpine. --}}
+@section('alpine', 'stock()')
+
 @section('topbar')
     <div>
         <h1>Stock</h1>
@@ -17,7 +21,6 @@
 @endsection
 
 @section('contenido')
-<div x-data="stock()">
 
     <div class="stats stats-3 mb16">
         <div class="stat">
@@ -169,7 +172,6 @@
     @include('stock.partials.dialogo-insumo')
     @include('stock.partials.dialogo-movimiento', ['tipo' => 'compra'])
     @include('stock.partials.dialogo-movimiento', ['tipo' => 'merma'])
-</div>
 
 <script>
 function stock() {

@@ -95,6 +95,12 @@
                 </a>
             </div>
 
+            {{-- Quién hizo qué con esta mesa (docs/11-auditoria.md) --}}
+            <div class="card mt16">
+                <div class="sec">Historial de la mesa</div>
+                @include('partials.bitacora', ['eventos' => \App\Support\Bitacora::de($orden)])
+            </div>
+
             <div class="notice mt16">
                 @if ($esPool)
                     <span class="dot" style="background:var(--blue)"></span>

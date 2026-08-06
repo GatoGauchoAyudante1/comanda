@@ -26,7 +26,16 @@
 
     <x-rail />
 
-    <div class="main">
+    {{--
+      El alcance de Alpine abarca la barra superior Y el contenido.
+
+      Si cada pantalla declarara su propio `x-data` adentro de @section('contenido'),
+      los botones de la barra superior quedarían fuera del alcance y no harían
+      nada al tocarlos. Las pantallas declaran su estado con:
+
+          @section('alpine', 'carta()')
+    --}}
+    <div class="main" x-data="@yield('alpine', '{}')">
 
         <header class="topbar">
             @hasSection('topbar')

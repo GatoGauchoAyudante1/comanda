@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Models\CashSession;
 use App\Models\User;
+use App\Support\Bitacora;
 use App\Support\Plata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +48,21 @@ class CerrarCaja
                 'difference_note'  => $explicacion,
                 'bill_breakdown'   => $conteo,
             ]);
+
+            $diferencia = $contado - $esperado;
+
+            Bitacora::registrar(
+                'caja.cerrada',
+                'Cerró el turno · esperaba ' . Plata::format($esperado)
+                    . ' · contó ' . Plata::format($contado)
+                    . ($diferencia === 0
+                        ? ' · cuadró exacta'
+                        : ' · diferencia ' . Plata::format($diferencia))
+                    . ($explicacion ? " · «{$explicacion}»" : ''),
+                $caja,
+                ['esperado' => $esperado, 'contado' => $contado, 'diferencia' => $diferencia],
+                $usuario,
+            );
 
             return $caja->refresh();
         });

@@ -8,6 +8,7 @@ use App\Models\Table;
 use App\Models\TableRate;
 use App\Models\TableSession;
 use App\Models\User;
+use App\Support\Bitacora;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -67,7 +68,7 @@ class AbrirMesa
                 'user_id'         => $mozo->id,
             ]);
 
-            return TableSession::create([
+            $sesion = TableSession::create([
                 'table_id'   => $mesa->id,
                 'order_id'   => $orden->id,
                 'user_id'    => $mozo->id,
@@ -86,6 +87,25 @@ class AbrirMesa
                     ? ($registradoPor?->id ?? $mozo->id)
                     : null,
             ]);
+
+            Bitacora::registrar(
+                'mesa.abierta',
+                "Abrió {$mesa->name} · atiende {$mozo->name}"
+                    . ($comensales ? " · {$comensales} personas" : '')
+                    . ($minutosAtras > 0 ? " · reloj retrasado {$minutosAtras} min" : '')
+                    . ($referencia ? " · «{$referencia}»" : ''),
+                $orden,
+                [
+                    'mesa'           => $mesa->name,
+                    'mozo'           => $mozo->name,
+                    'tarifa'         => $tarifa?->name,
+                    'precio_hora'    => $tarifa?->price_per_hour,
+                    'minutos_atras'  => $minutosAtras,
+                ],
+                $registradoPor,
+            );
+
+            return $sesion;
         });
     }
 }

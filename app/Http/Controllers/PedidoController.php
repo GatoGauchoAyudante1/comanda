@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Zone;
+use App\Support\Bitacora;
 use App\Support\Plata;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -18,21 +19,58 @@ use RuntimeException;
 
 class PedidoController extends Controller
 {
-    /** Tablero por estados. Ver mockups-html/06-delivery-tablero.html */
+    /**
+     * Tablero de todo lo que está en curso. Ver mockups-html/06-delivery-tablero.html
+     *
+     * Incluye pedidos de mesa además de delivery y retiro: el cajero quiere un
+     * solo lugar donde ver qué se está cocinando, venga de donde venga.
+     *
+     * La diferencia es cómo se mueven. Delivery y retiro tienen estados propios
+     * (R-16) y avanzan con botones. Las mesas no: su `status` queda en `open`
+     * mientras el cliente consume, y lo que avanza es el estado de cada ítem.
+     * Por eso a las mesas se las ubica por sus ítems.
+     */
     public function tablero(AvanzarPedido $avanzar): View
     {
-        $pedidos = Order::query()
+        $relaciones = [
+            'items.product', 'items.variant',
+            'delivery.customer', 'delivery.zone', 'delivery.driver',
+            'tableSession.table', 'tableSession.user',
+        ];
+
+        $paraLlevar = Order::query()
             ->whereIn('type', ['delivery', 'retiro'])
             ->whereIn('status', ['open', 'kitchen', 'ready', 'on_route'])
-            ->with(['delivery.customer', 'delivery.zone', 'delivery.driver', 'items'])
+            ->with($relaciones)
             ->orderBy('created_at')
             ->get();
 
+        // Mesas y mostrador con algo pasando por cocina.
+        $enSalon = Order::query()
+            ->whereIn('type', ['mesa_pool', 'mesa_salon', 'mostrador'])
+            ->where('status', 'open')
+            ->whereHas('items', fn ($q) => $q->whereIn('status', ['kitchen', 'ready']))
+            ->with($relaciones)
+            ->orderBy('created_at')
+            ->get();
+
+        $enCocina = $enSalon->filter(fn (Order $o) => $o->items->contains('status', 'kitchen'));
+        $servir   = $enSalon->reject(fn (Order $o) => $o->items->contains('status', 'kitchen'));
+
         return view('pedidos.tablero', [
             'columnas' => [
-                'kitchen'  => ['titulo' => 'En cocina', 'pedidos' => $pedidos->whereIn('status', ['open', 'kitchen'])],
-                'ready'    => ['titulo' => 'Listos',    'pedidos' => $pedidos->where('status', 'ready')],
-                'on_route' => ['titulo' => 'En viaje',  'pedidos' => $pedidos->where('status', 'on_route')],
+                'kitchen' => [
+                    'titulo'  => 'En cocina',
+                    'pedidos' => $paraLlevar->whereIn('status', ['open', 'kitchen'])->concat($enCocina),
+                ],
+                'ready' => [
+                    'titulo'  => 'Listos',
+                    'pedidos' => $paraLlevar->where('status', 'ready')->concat($servir),
+                ],
+                'on_route' => [
+                    'titulo'  => 'En viaje',
+                    'pedidos' => $paraLlevar->where('status', 'on_route'),
+                ],
             ],
             'repartidores' => User::where('role', 'repartidor')->where('active', true)->get(),
             'avanzar'      => $avanzar,
@@ -40,6 +78,30 @@ class PedidoController extends Controller
                 ->where('status', 'paid')
                 ->whereDate('created_at', today()),
         ]);
+    }
+
+    /**
+     * La comida de una mesa salió a la mesa.
+     *
+     * Saca la comanda del tablero sin cerrar la cuenta: el cliente sigue
+     * sentado y puede pedir más.
+     */
+    public function servido(Order $orden): RedirectResponse
+    {
+        abort_unless($orden->esMesa() || $orden->type === 'mostrador', 404);
+
+        $servidos = $orden->items()->where('status', 'ready')->with('product')->get();
+
+        $orden->items()->where('status', 'ready')->update(['status' => 'delivered']);
+
+        Bitacora::registrar(
+            'pedido.servido',
+            'Sirvió a la mesa: ' . $servidos->map(fn ($i) => "{$i->qty}x {$i->product->name}")->join(', '),
+            $orden,
+            ['items' => $servidos->pluck('id')],
+        );
+
+        return back()->with('ok', "Comanda #{$orden->number} servida.");
     }
 
     /** Alta de pedido. Ver mockups-html/05-delivery-nuevo.html */

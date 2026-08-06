@@ -13,6 +13,7 @@ use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\RepartidorController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\HistorialController;
 use App\Http\Controllers\MesaController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\SesionController;
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/pedidos/cliente', [PedidoController::class, 'buscarCliente'])->name('pedidos.cliente');
         Route::post('/pedidos', [PedidoController::class, 'guardar'])->name('pedidos.guardar');
         Route::post('/pedidos/{orden}/avanzar', [PedidoController::class, 'avanzar'])->name('pedidos.avanzar');
+        Route::post('/pedidos/{orden}/servido', [PedidoController::class, 'servido'])->name('pedidos.servido');
     });
 
     // Cocina
@@ -139,6 +141,11 @@ Route::middleware('auth')->group(function () {
         Route::delete('/stock/recetas/{producto}/{linea}', [RecetaController::class, 'borrarLinea'])->name('receta.linea.borrar');
     });
 
+    // Historial: el cajero tambien lo necesita, los reclamos aparecen en el mostrador.
+    Route::get('/historial', HistorialController::class)
+        ->middleware('rol:cajero')
+        ->name('historial');
+
     Route::get('/reportes', ReporteController::class)
         ->middleware('rol:dueno')
         ->name('reportes');
@@ -150,6 +157,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/ajustes/modulo', [ConfiguracionController::class, 'alternarModulo'])->name('configuracion.modulo');
         Route::post('/ajustes/modulo/restablecer', [ConfiguracionController::class, 'restablecerModulo'])->name('configuracion.modulo.restablecer');
 
+        Route::post('/ajustes/cocina', [ConfiguracionController::class, 'guardarCocina'])->name('configuracion.cocina');
+
+        Route::post('/ajustes/mesas', [ConfiguracionController::class, 'crearMesas'])->name('configuracion.mesas');
+        Route::post('/ajustes/mesas/{mesa}/alternar', [ConfiguracionController::class, 'alternarMesa'])->name('configuracion.mesa.alternar');
+
         Route::post('/ajustes/tarifas', [ConfiguracionController::class, 'guardarTarifa'])->name('configuracion.tarifa');
         Route::post('/ajustes/tarifas/{tarifa}', [ConfiguracionController::class, 'guardarTarifa'])->name('configuracion.tarifa.actualizar');
 
@@ -159,5 +171,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/ajustes/usuarios', [ConfiguracionController::class, 'guardarUsuario'])->name('configuracion.usuario');
         Route::post('/ajustes/usuarios/{usuario}', [ConfiguracionController::class, 'guardarUsuario'])->name('configuracion.usuario.actualizar');
         Route::post('/ajustes/usuarios/{usuario}/alternar', [ConfiguracionController::class, 'alternarUsuario'])->name('configuracion.usuario.alternar');
+        Route::delete('/ajustes/usuarios/{usuario}', [ConfiguracionController::class, 'eliminarUsuario'])->name('configuracion.usuario.eliminar');
     });
 });

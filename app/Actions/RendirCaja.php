@@ -6,6 +6,8 @@ use App\Models\CashSession;
 use App\Models\DriverSettlement;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\Bitacora;
+use App\Support\Plata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -53,7 +55,7 @@ class RendirCaja
 
         $esperado = (int) $pagos->sum('amount');
 
-        return DB::transaction(function () use ($repartidor, $caja, $pagos, $esperado, $entregado) {
+        return DB::transaction(function () use ($repartidor, $caja, $pagos, $esperado, $entregado, $recibe) {
             $rendicion = DriverSettlement::create([
                 'driver_id'        => $repartidor->id,
                 'cash_session_id'  => $caja->id,
@@ -62,12 +64,33 @@ class RendirCaja
                 'cash_received'    => $entregado,
                 'difference'       => $entregado - $esperado,
                 'settled_at'       => Carbon::now(),
+                'received_by'      => $recibe->id,
             ]);
 
             // Al quedar ligados a la rendición, estos pagos dejan de restarse
             // del arqueo: la plata ya está en el cajón.
             Payment::whereIn('id', $pagos->pluck('id'))
                 ->update(['settlement_id' => $rendicion->id]);
+
+            $diferencia = $entregado - $esperado;
+
+            Bitacora::registrar(
+                'cadete.rindio',
+                "{$repartidor->name} rindió " . Plata::format($entregado)
+                    . " de {$pagos->count()} envíos ante {$recibe->name}"
+                    . ($diferencia !== 0
+                        ? ' · diferencia ' . Plata::format($diferencia)
+                        : ' · sin diferencia'),
+                $caja,
+                [
+                    'repartidor' => $repartidor->name,
+                    'recibio'    => $recibe->name,
+                    'esperado'   => $esperado,
+                    'entregado'  => $entregado,
+                    'diferencia' => $diferencia,
+                ],
+                $repartidor,
+            );
 
             return $rendicion;
         });

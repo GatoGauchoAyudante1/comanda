@@ -2,6 +2,10 @@
 
 @section('titulo', 'Carta')
 
+{{-- El estado vive en el layout para que los botones de la barra superior
+     también queden dentro del alcance de Alpine. --}}
+@section('alpine', 'carta()')
+
 @section('topbar')
     <div>
         <h1>Carta</h1>
@@ -16,7 +20,6 @@
 @endsection
 
 @section('contenido')
-<div x-data="carta()">
 
     @if ($sinReceta > 0)
         <div class="notice notice-amber mb16">
@@ -334,7 +337,6 @@
             </div>
         </form>
     </div>
-</div>
 
 <script>
 function carta() {

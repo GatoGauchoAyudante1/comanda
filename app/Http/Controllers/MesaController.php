@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\AbrirMesa;
 use App\Actions\AnularMesa;
+use App\Support\Bitacora;
 use App\Models\Table;
 use App\Models\TableRate;
 use App\Models\TableSession;
@@ -57,6 +58,14 @@ class MesaController extends Controller
     public function pausar(TableSession $sesion): RedirectResponse
     {
         $sesion->pausada() ? $sesion->reanudar() : $sesion->pausar();
+
+        Bitacora::registrar(
+            $sesion->pausada() ? 'mesa.pausada' : 'mesa.reanudada',
+            $sesion->pausada()
+                ? "Pausó {$sesion->table->name} en {$sesion->tiempoLegible()}"
+                : "Reanudó {$sesion->table->name} · {$sesion->paused_minutes} min sin cobrar",
+            $sesion->order,
+        );
 
         return back()->with('ok', $sesion->pausada() ? 'Mesa pausada.' : 'Mesa reanudada.');
     }

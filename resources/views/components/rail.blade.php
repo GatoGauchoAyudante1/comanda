@@ -16,16 +16,26 @@
     $items = collect([
         ['id' => 'mesas',    'label' => 'Mesas',    'ruta' => 'panel',    'roles' => ['cajero', 'mozo'],   'modulo' => $modulos['salon'] || $modulos['pool']],
         ['id' => 'pedidos',  'label' => 'Pedidos',  'ruta' => 'pedidos',  'roles' => ['cajero', 'mozo'],   'modulo' => $modulos['delivery']],
-        ['id' => 'pedidos',  'label' => 'Cocina',   'ruta' => 'cocina',   'roles' => ['cocina'],           'modulo' => true],
-        ['id' => 'pedidos',  'label' => 'Envíos',   'ruta' => 'envios',   'roles' => ['repartidor'],       'modulo' => $modulos['delivery']],
+        // Los roles de acá deben coincidir con el middleware de routes/web.php.
+        // Cajero y mozo pueden entrar a la cocina, así que también la ven.
+        ['id' => 'cocina',   'label' => 'Cocina',   'ruta' => 'cocina',   'roles' => ['cocina', 'cajero', 'mozo'], 'modulo' => true],
+        // `exclusivo`: pantalla personal. Ni siquiera el dueño la ve en el menú,
+        // porque le mostraría SUS envíos, que siempre están vacíos.
+        ['id' => 'pedidos',  'label' => 'Envíos',   'ruta' => 'envios',   'roles' => ['repartidor'],       'modulo' => $modulos['delivery'], 'exclusivo' => true],
         ['id' => 'caja',     'label' => 'Caja',     'ruta' => 'caja',     'roles' => ['cajero'],           'modulo' => true],
         ['id' => 'carta',    'label' => 'Carta',    'ruta' => 'carta',    'roles' => [],                   'modulo' => true],
         ['id' => 'stock',    'label' => 'Stock',    'ruta' => 'stock',    'roles' => [],                   'modulo' => $modulos['stock']],
+        ['id' => 'historial','label' => 'Historial','ruta' => 'historial','roles' => ['cajero'],           'modulo' => true],
         ['id' => 'reportes', 'label' => 'Reportes', 'ruta' => 'reportes', 'roles' => [],                   'modulo' => true],
         ['id' => 'config',   'label' => 'Ajustes',  'ruta' => 'configuracion', 'roles' => [],              'modulo' => true],
     ])->filter(function ($item) use ($rol) {
         if (! $item['modulo']) {
             return false;
+        }
+
+        // Las pantallas exclusivas sólo las ve su rol, dueño incluido.
+        if ($item['exclusivo'] ?? false) {
+            return in_array($rol, $item['roles'], true);
         }
 
         return $rol === 'dueno' || in_array($rol, $item['roles'], true);
@@ -49,6 +59,14 @@
             </a>
         @endforeach
     </nav>
+
+    {{-- Aparece sólo cuando quedan ítems abajo. Ver marcarDesbordeDelRail() --}}
+    <span class="rail-mas" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9l6 6 6-6"/>
+        </svg>
+    </span>
 
     <form method="POST" action="{{ route('logout') }}" class="rail-user">
         @csrf

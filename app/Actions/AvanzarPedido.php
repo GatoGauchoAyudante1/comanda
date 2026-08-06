@@ -6,6 +6,8 @@ use App\Events\PedidoListo;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\Bitacora;
+use App\Support\Plata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -76,17 +78,50 @@ class AvanzarPedido
         return DB::transaction(function () use ($orden, $nuevoEstado, $usuario, $repartidorId) {
             $avisos = [];
 
+            $anterior = $orden->status;
+
             if ($repartidorId && $orden->delivery) {
+                $previo = $orden->delivery->driver?->name;
+                $nuevo  = User::find($repartidorId)?->name;
+
                 $orden->delivery->update(['driver_id' => $repartidorId]);
+
+                Bitacora::registrar(
+                    'pedido.asignado',
+                    $previo && $previo !== $nuevo
+                        ? "Reasignó el pedido de {$previo} a {$nuevo}"
+                        : "Asignó el pedido a {$nuevo}",
+                    $orden,
+                    ['repartidor' => $nuevo, 'anterior' => $previo],
+                    $usuario,
+                );
             }
 
             match ($nuevoEstado) {
                 'ready'    => PedidoListo::dispatch($orden),
-                'on_route' => $orden->delivery?->update(['dispatched_at' => Carbon::now()]),
+                'on_route' => $orden->delivery?->update([
+                    'dispatched_at' => Carbon::now(),
+                    'dispatched_by' => $usuario->id,
+                ]),
                 default    => null,
             };
 
             $orden->update(['status' => $nuevoEstado]);
+
+            Bitacora::registrar(
+                "pedido.{$nuevoEstado}",
+                match ($nuevoEstado) {
+                    'kitchen'   => 'Devolvió el pedido a cocina',
+                    'ready'     => 'Marcó el pedido como listo',
+                    'on_route'  => 'Despachó el pedido a la calle'
+                        . ($orden->delivery?->driver ? " con {$orden->delivery->driver->name}" : ''),
+                    'delivered' => 'Confirmó la entrega del pedido',
+                    default     => "Pasó el pedido a {$nuevoEstado}",
+                },
+                $orden,
+                ['de' => $anterior, 'a' => $nuevoEstado],
+                $usuario,
+            );
 
             if ($nuevoEstado === 'delivered') {
                 $avisos = $this->entregar($orden, $usuario);
@@ -102,7 +137,10 @@ class AvanzarPedido
      */
     private function entregar(Order $orden, User $usuario): array
     {
-        $orden->delivery?->update(['delivered_at' => Carbon::now()]);
+        $orden->delivery?->update([
+            'delivered_at' => Carbon::now(),
+            'delivered_by' => $usuario->id,
+        ]);
 
         // El stock se descuenta al cerrar, no al cargar (R-24). Para un
         // delivery, "cerrar" es el momento en que la comida sale y llega.
@@ -111,20 +149,39 @@ class AvanzarPedido
         // Si todavía no se registró la plata, se registra ahora con el medio
         // que se acordó al tomar el pedido.
         if ($orden->saldo() > 0 && $orden->cash_session_id) {
+            $metodo  = $orden->delivery?->payment_method ?? 'cash';
+            $importe = $orden->saldo();
+
             Payment::create([
                 'order_id'        => $orden->id,
                 'cash_session_id' => $orden->cash_session_id,
                 'user_id'         => $usuario->id,
-                'method'          => $orden->delivery?->payment_method ?? 'cash',
-                'amount'          => $orden->saldo(),
+                'method'          => $metodo,
+                'amount'          => $importe,
                 'received'        => $orden->delivery?->pays_with,
             ]);
+
+            Bitacora::registrar(
+                'cobro.registrado',
+                'Registró el cobro de ' . Plata::format($importe) . " en {$metodo}",
+                $orden,
+                ['metodo' => $metodo, 'importe' => $importe],
+                $usuario,
+            );
         }
 
         $orden->refresh();
 
         if ($orden->estaSaldado()) {
             $orden->update(['status' => 'paid', 'closed_at' => Carbon::now()]);
+
+            Bitacora::registrar(
+                'pedido.cobrado',
+                'Pedido cerrado y cobrado por ' . Plata::format($orden->total),
+                $orden,
+                ['total' => $orden->total],
+                $usuario,
+            );
         }
 
         return $avisos;

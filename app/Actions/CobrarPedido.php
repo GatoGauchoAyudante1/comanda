@@ -7,6 +7,8 @@ use App\Models\CashSession;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\Bitacora;
+use App\Support\Plata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -87,7 +89,7 @@ class CobrarPedido
             throw new RuntimeException('No se puede imputar más que el saldo pendiente.'); // R-12
         }
 
-        return Payment::create([
+        $pago = Payment::create([
             'order_id'        => $orden->id,
             'cash_session_id' => $caja->id,
             'user_id'         => $usuario->id,
@@ -96,6 +98,18 @@ class CobrarPedido
             'received'        => $metodo === 'cash' ? $recibido : null,   // R-11
             'reference'       => $referencia,
         ]);
+
+        Bitacora::registrar(
+            'cobro.registrado',
+            'Imputó ' . Plata::format($importe) . " en {$metodo}"
+                . ($pago->vuelto() > 0 ? ' · vuelto ' . Plata::format($pago->vuelto()) : '')
+                . ($referencia ? " · op. {$referencia}" : ''),
+            $orden,
+            ['metodo' => $metodo, 'importe' => $importe, 'pago_id' => $pago->id],
+            $usuario,
+        );
+
+        return $pago;
     }
 
     /**
@@ -122,6 +136,20 @@ class CobrarPedido
             $avisos = ($this->descontarStock)($orden);           // R-24
 
             $orden->update(['status' => 'paid', 'closed_at' => Carbon::now()]);
+
+            Bitacora::registrar(
+                'pedido.cobrado',
+                'Cerró y cobró ' . Plata::format($orden->total)
+                    . ($sesion ? " · {$sesion->table->name}" : '')
+                    . ($orden->time_amount > 0 ? ' · tiempo ' . Plata::format($orden->time_amount) : ''),
+                $orden,
+                [
+                    'total'    => $orden->total,
+                    'tiempo'   => $orden->time_amount,
+                    'consumos' => $orden->items_total,
+                    'medios'   => $orden->payments->pluck('amount', 'method'),
+                ],
+            );
 
             MesaCobrada::dispatch($orden);
 

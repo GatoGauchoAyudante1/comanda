@@ -49,4 +49,26 @@ class User extends Authenticatable
     public function orders(): HasMany     { return $this->hasMany(Order::class); }
     public function payments(): HasMany   { return $this->hasMany(Payment::class); }
     public function envios(): HasMany     { return $this->hasMany(Delivery::class, 'driver_id'); }
+
+    /**
+     * ¿Este usuario ya operó?
+     *
+     * Un usuario que tocó plata o mercadería no se borra: su nombre está en
+     * pedidos, cobros, arqueos y movimientos de stock, y esa trazabilidad es
+     * justamente lo que hace auditable al sistema (R-32). Para esos, la baja
+     * es desactivarlos.
+     *
+     * Sólo se puede borrar al que se creó por error y nunca hizo nada.
+     */
+    public function tieneHistorial(): bool
+    {
+        return $this->orders()->exists()
+            || $this->payments()->exists()
+            || CashSession::where('opened_by', $this->id)->exists()
+            || CashMovement::where('user_id', $this->id)->exists()
+            || TableSession::where('user_id', $this->id)->exists()
+            || DriverSettlement::where('driver_id', $this->id)->exists()
+            || Purchase::where('user_id', $this->id)->exists()
+            || StockCount::where('user_id', $this->id)->exists();
+    }
 }

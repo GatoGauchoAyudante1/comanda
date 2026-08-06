@@ -29,10 +29,10 @@
         <form method="POST" action="{{ route('login.entrar') }}" class="card">
             @csrf
 
-            @if ($errors->any())
-                <div class="notice mt0 mb16" style="border-color:var(--red-line);background:var(--red-dim)">
+            @if ($errors->any() || session('error'))
+                <div class="notice mb16" style="border-color:var(--red-line);background:var(--red-dim)">
                     <span class="dot dot-red"></span>
-                    <div class="ds t-white">{{ $errors->first() }}</div>
+                    <div class="ds t-white">{{ $errors->first() ?: session('error') }}</div>
                 </div>
             @endif
 

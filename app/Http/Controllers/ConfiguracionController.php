@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Models\Table;
 use App\Models\TableRate;
 use App\Models\User;
 use App\Models\Zone;
@@ -35,9 +36,61 @@ class ConfiguracionController extends Controller
             'modulos'      => self::MODULOS,
             'tarifas'      => TableRate::orderByDesc('is_default')->orderBy('name')->get(),
             'zonas'        => Zone::orderBy('name')->get(),
-            'usuarios'     => User::orderBy('role')->orderBy('name')->get(),
+            'usuarios'     => User::orderBy('role')->orderBy('name')->get()
+                ->each(fn (User $u) => $u->setAttribute('borrable', ! $u->tieneHistorial())),
             'roles'        => User::ROLES,
+            'mesas'        => Table::orderBy('type')->orderBy('sort_order')->get()->groupBy('type'),
+            'rolesCocina'  => self::ROLES_COCINA,
+            'marcanListo'  => Negocio::rolesQueMarcanListo(),
         ]);
+    }
+
+    /**
+     * Alta de mesas en tanda: nadie quiere cargar "Pool 1" a "Pool 8" de a una.
+     */
+    public function crearMesas(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'type'    => ['required', 'in:pool,salon'],
+            'prefijo' => ['required', 'string', 'max:20'],
+            'desde'   => ['required', 'integer', 'min:1', 'max:200'],
+            'hasta'   => ['required', 'integer', 'min:1', 'max:200', 'gte:desde'],
+        ]);
+
+        $creadas = 0;
+
+        foreach (range($datos['desde'], $datos['hasta']) as $n) {
+            $nombre = trim("{$datos['prefijo']} {$n}");
+
+            if (Table::where('name', $nombre)->exists()) {
+                continue;
+            }
+
+            Table::create([
+                'name'       => $nombre,
+                'type'       => $datos['type'],
+                'sort_order' => $n,
+                'active'     => true,
+            ]);
+
+            $creadas++;
+        }
+
+        return back()->with('ok', $creadas > 0
+            ? "{$creadas} mesa(s) creadas."
+            : 'Ya existían todas con esos nombres.');
+    }
+
+    /** Desactivar una mesa la saca del panel sin borrar su historial. */
+    public function alternarMesa(Table $mesa): RedirectResponse
+    {
+        if ($mesa->sesionAbierta()->exists()) {
+            return back()->with('error', "{$mesa->name} está ocupada. Cerrala antes de desactivarla.");
+        }
+
+        $mesa->update(['active' => ! $mesa->active]);
+
+        return back()->with('ok', "{$mesa->name} " . ($mesa->active ? 'activada' : 'desactivada') . '.');
     }
 
     public function guardarNegocio(Request $request): RedirectResponse
@@ -52,6 +105,32 @@ class ConfiguracionController extends Controller
         Negocio::olvidar();
 
         return back()->with('ok', 'Datos del negocio actualizados.');
+    }
+
+    /**
+     * Quién puede marcar comandas como listas.
+     *
+     * `cocina` no aparece: siempre puede, y sacarlo dejaría la cocina sin
+     * poder trabajar. El dueño tampoco: es quien configura esto. Ver R-36.
+     */
+    public const ROLES_COCINA = [
+        'cajero' => ['Cajero', 'Útil si el mismo que cobra despacha el mostrador.'],
+        'mozo'   => ['Mozo', 'Ojo: un mozo apurado puede marcar listo algo que no salió.'],
+    ];
+
+    public function guardarCocina(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'roles'   => ['nullable', 'array'],
+            'roles.*' => [Rule::in(array_keys(self::ROLES_COCINA))],
+        ]);
+
+        Setting::put('kitchen.ready_roles', array_values($datos['roles'] ?? []), 'json');
+        Negocio::olvidar();
+
+        $roles = Negocio::rolesQueMarcanListo();
+
+        return back()->with('ok', 'Marcan comandas listas: ' . implode(', ', $roles) . '.');
     }
 
     public function alternarModulo(Request $request): RedirectResponse
@@ -155,6 +234,28 @@ class ConfiguracionController extends Controller
         }
 
         return back()->with('ok', 'Usuario guardado.');
+    }
+
+    /**
+     * Borrado definitivo. Sólo para usuarios que nunca operaron.
+     * Ver App\Models\User::tieneHistorial() y R-37.
+     */
+    public function eliminarUsuario(Request $request, User $usuario): RedirectResponse
+    {
+        if ($usuario->id === $request->user()->id) {
+            return back()->with('error', 'No podés borrar tu propio usuario.');
+        }
+
+        if ($usuario->tieneHistorial()) {
+            return back()->with('error',
+                "«{$usuario->name}» ya operó en el sistema, así que no se puede borrar: "
+                . 'su nombre está en pedidos, cobros y arqueos. Desactivalo para quitarle el acceso.');
+        }
+
+        $nombre = $usuario->name;
+        $usuario->delete();
+
+        return back()->with('ok', "«{$nombre}» fue borrado. Nunca había operado.");
     }
 
     public function alternarUsuario(Request $request, User $usuario): RedirectResponse
