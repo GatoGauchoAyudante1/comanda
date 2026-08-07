@@ -14,6 +14,7 @@
         <div class="sub">{{ $insumos->count() }} insumos · valor @plata($valorTotal)</div>
     </div>
     <div class="topbar-actions">
+        <button class="btn hide-mobile" @click="nuevo()">+ Nuevo insumo</button>
         <button class="btn hide-mobile" @click="compra = true">Registrar compra</button>
         <button class="btn hide-mobile" @click="merma = true">Registrar merma</button>
         <a class="btn btn-primary" href="{{ route('conteo') }}">Hacer conteo</a>
@@ -74,8 +75,10 @@
 
                         // Fuera del atributo: @json() con un array literal adentro
                         // hace que el parser de Blade se cuelgue. Ya pasó en la carta.
+                        // min_stock y cost viajan en unidad base y en centavos;
+                        // el diálogo los pasa a unidad comercial. Ver editar().
                         $json = json_encode(
-                            $i->only(['id', 'name', 'base_unit', 'area']),
+                            $i->only(['id', 'name', 'base_unit', 'area', 'min_stock', 'cost']),
                             JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT,
                         );
                     @endphp
@@ -118,7 +121,16 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="t-mute">No hay insumos en este filtro.</td></tr>
+                    <tr>
+                        <td colspan="7" class="t-mute">
+                            No hay insumos en este filtro.
+                            @if (! $area)
+                                <button type="button" class="btn btn-sm" style="margin-left:8px" @click="nuevo()">
+                                    + Cargar el primero
+                                </button>
+                            @endif
+                        </td>
+                    </tr>
                 @endforelse
                 </tbody>
             </table>
@@ -162,6 +174,7 @@
     </div>
 
     <div class="flex g10 mt16 only-mobile">
+        <button class="btn grow" @click="nuevo()">+ Insumo</button>
         <button class="btn grow" @click="compra = true">Compra</button>
         <button class="btn grow" @click="merma = true">Merma</button>
     </div>
@@ -180,11 +193,45 @@ function stock() {
         // unidades disponibles según la unidad base del insumo
         equivalencias: @json(\App\Support\Unidades::EQUIVALENCIAS),
         elegido: null,
+        // unidad en la que el diálogo escribe el mínimo y el costo
+        unidad: 'kg',
 
         insumos: @json($insumos->map->only(['id', 'name', 'base_unit'])),
 
-        editar(i) { this.insumo = { ...i }; },
-        nuevo()   { this.insumo = { id: null, name: '', base_unit: 'g', area: 'cocina' }; },
+        /*
+         | La base guarda unidad base (g, ml) y centavos; el diálogo trabaja en
+         | unidad comercial (kg, L) y en pesos, que es como se compra.
+         | Es la vuelta de lo que hace StockController::guardarInsumo().
+         | Espejo de Unidades::comercial().
+         */
+        comercial(baseUnit) {
+            const opciones = this.equivalencias[baseUnit] ?? { un: 1 };
+            const unidad   = Object.keys(opciones).at(-1);
+
+            return { unidad, factor: opciones[unidad] };
+        },
+
+        editar(i) {
+            const com = this.comercial(i.base_unit);
+
+            this.unidad = com.unidad;
+            this.insumo = {
+                ...i,
+                min_stock: this.limpio(i.min_stock / com.factor),
+                cost:      this.limpio(i.cost * com.factor / 100),
+            };
+        },
+
+        nuevo() {
+            this.unidad = this.comercial('g').unidad;
+            this.insumo = { id: null, name: '', base_unit: 'g', area: 'cocina', min_stock: '', cost: '' };
+        },
+
+        // Cambiar la unidad base cambia las opciones: la elegida ya no aplica.
+        cambiarBase() { this.unidad = this.comercial(this.insumo.base_unit).unidad; },
+
+        // Evita que 0.1+0.2 se filtre al input como 0.30000000000000004.
+        limpio(n) { return Number(Number(n).toFixed(4)); },
 
         unidadesDe(baseUnit) { return Object.keys(this.equivalencias[baseUnit] ?? { un: 1 }); },
 

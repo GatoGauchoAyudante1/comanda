@@ -75,6 +75,41 @@ function marcarDesbordeDelRail() {
 
 document.addEventListener('DOMContentLoaded', marcarDesbordeDelRail);
 
+/*
+| Interruptor de tema.
+|
+| La preferencia es del dispositivo, no del usuario: la tablet de la cocina
+| puede quedar en oscuro y la notebook del dueño en claro con la misma cuenta.
+| Por eso va en localStorage y no en la base.
+|
+| El tema guardado ya se aplicó en el <head> (partials/tema-script) para que no
+| haya destello al cargar; acá sólo se maneja el clic.
+*/
+document.addEventListener('click', e => {
+    if (! e.target.closest('[data-tema-btn]')) return;
+
+    const raiz   = document.documentElement;
+    const aClaro = raiz.dataset.tema !== 'claro';
+
+    if (aClaro) {
+        raiz.dataset.tema = 'claro';
+    } else {
+        delete raiz.dataset.tema;
+    }
+
+    try {
+        localStorage.setItem('tema', aClaro ? 'claro' : 'oscuro');
+    } catch (err) {
+        // Sin almacenamiento el cambio vale sólo para esta pantalla.
+    }
+
+    // La barra del navegador en el celular acompaña al fondo de la app.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+        meta.setAttribute('content', aClaro ? '#F5F7F6' : '#070908');
+    }
+});
+
 document.addEventListener('click', e => {
 
     // Grupos de opción excluyente: sólo una prendida a la vez.

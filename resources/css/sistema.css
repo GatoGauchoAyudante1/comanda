@@ -50,10 +50,87 @@
   --blue:#5FA8E0;
   --blue-dim:rgba(95,168,224,.12);
 
+  /* series de los gráficos, de más a menos protagonismo */
+  --serie-1:#28BE7E;
+  --serie-2:#2C8A62;
+  --serie-3:#20604A;
+  --serie-4:#3E4B46;
+
+  /* en oscuro las tarjetas se separan por el borde, no por sombra */
+  --sombra:none;
+  --sombra-modal:0 30px 90px rgba(0,0,0,.65);
+  --velo:rgba(3,5,4,.74);           /* fondo detrás de los diálogos */
+
   --r:14px;
   --r-sm:10px;
   --rail:94px;
 }
+
+/*
+| ============================================================
+| MODO CLARO
+| ============================================================
+| Se activa con data-tema="claro" en <html>. Sólo cambian los tokens: ninguna
+| regla de más abajo sabe qué tema está activo.
+|
+| No es el oscuro invertido. Los acentos se oscurecen bastante porque el mismo
+| verde que se lee bien sobre negro desaparece sobre blanco, y acá hay importes
+| y alertas que tienen que leerse de un vistazo.
+*/
+:root[data-tema="claro"]{
+  color-scheme:light;
+
+  --bg:#F5F7F6;          /* gris muy claro: el blanco puro cansa en un turno largo */
+  --panel:#FFFFFF;
+  --panel-2:#F1F4F3;
+  --panel-3:#E6ECE9;
+  --line:#E3E9E6;
+  --line-2:#CDD7D3;
+
+  --txt:#0F1614;
+  --txt-2:#59665F;
+  --txt-3:#8A958F;
+
+  --green:#0F8F58;       /* oscurecido para contrastar sobre blanco */
+  --green-2:#0B7446;
+  --green-dim:rgba(15,143,88,.10);
+  --green-line:rgba(15,143,88,.34);
+  --green-ink:#FFFFFF;   /* el texto sobre el botón verde ahora va en blanco */
+
+  --amber:#A96A05;
+  --amber-dim:rgba(169,106,5,.10);
+  --amber-line:rgba(169,106,5,.30);
+
+  --red:#C33726;
+  --red-dim:rgba(195,55,38,.09);
+  --red-line:rgba(195,55,38,.30);
+
+  --blue:#1D6BAE;
+  --blue-dim:rgba(29,107,174,.10);
+
+  --serie-1:#0F8F58;
+  --serie-2:#37A87C;
+  --serie-3:#79C4A6;
+  --serie-4:#C2D2CB;
+
+  /* sin sombra las tarjetas blancas sobre gris claro se pierden */
+  --sombra:0 1px 2px rgba(15,22,20,.06), 0 1px 1px rgba(15,22,20,.04);
+  --sombra-modal:0 24px 60px rgba(15,22,20,.18);
+  --velo:rgba(15,22,20,.42);
+}
+
+/* El botón de tema: muestra a dónde va, no dónde está. */
+.tema-btn{
+  flex:none;width:42px;height:42px;border-radius:12px;
+  border:1px solid var(--line-2);background:transparent;color:var(--txt-2);
+  display:grid;place-items:center;cursor:pointer;transition:.15s;
+}
+.tema-btn:hover{color:var(--txt);border-color:var(--txt-3);background:var(--panel-2)}
+.tema-btn svg{width:19px;height:19px;stroke-width:1.8}
+.tema-btn .a-claro{display:block}
+.tema-btn .a-oscuro{display:none}
+:root[data-tema="claro"] .tema-btn .a-claro{display:none}
+:root[data-tema="claro"] .tema-btn .a-oscuro{display:block}
 
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%}
@@ -290,16 +367,16 @@ input{font:inherit}
 /* ============================================================
    CARDS / PANELES
    ============================================================ */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--sombra)}
 .card-tight{padding:14px}
 .card-flush{padding:0;overflow:hidden}
-.pane{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--sombra)}
 .pane + .pane{margin-top:14px}
 .pane-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .pane-hd h3{font-size:17px;font-weight:600}
 .pane-hd .badge{margin-left:auto}
 
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sombra)}
 .stat .label{font-size:12.5px;color:var(--txt-2);font-weight:500}
 .stat .val{font-size:29px;font-weight:700;letter-spacing:-.03em;margin-top:6px;line-height:1}
 .stat .foot{font-size:12.5px;margin-top:6px;color:var(--txt-3)}
@@ -413,10 +490,10 @@ input{font:inherit}
 .tcard--free:hover{border-color:var(--green-line);background:var(--green-dim)}
 .tcard--pool{
   background-image:
-    radial-gradient(circle at 11px 11px,#29322F 2px,transparent 2.6px),
-    radial-gradient(circle at calc(100% - 11px) 11px,#29322F 2px,transparent 2.6px),
-    radial-gradient(circle at 11px calc(100% - 11px),#29322F 2px,transparent 2.6px),
-    radial-gradient(circle at calc(100% - 11px) calc(100% - 11px),#29322F 2px,transparent 2.6px);
+    radial-gradient(circle at 11px 11px,var(--line-2) 2px,transparent 2.6px),
+    radial-gradient(circle at calc(100% - 11px) 11px,var(--line-2) 2px,transparent 2.6px),
+    radial-gradient(circle at 11px calc(100% - 11px),var(--line-2) 2px,transparent 2.6px),
+    radial-gradient(circle at calc(100% - 11px) calc(100% - 11px),var(--line-2) 2px,transparent 2.6px);
   background-repeat:no-repeat;
 }
 .tprog{position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--line)}
@@ -658,7 +735,7 @@ select.inp optgroup{
    ============================================================ */
 .overlay{
   position:fixed;inset:0;z-index:100;padding:24px;
-  background:rgba(3,5,4,.74);backdrop-filter:blur(4px);
+  background:var(--velo);backdrop-filter:blur(4px);
   display:grid;place-items:center;
 }
 .overlay[hidden]{display:none}
@@ -666,7 +743,7 @@ select.inp optgroup{
 .modal{
   width:100%;max-width:560px;max-height:calc(100vh - 48px);
   background:var(--panel);border:1px solid var(--line-2);border-radius:20px;
-  box-shadow:0 30px 90px rgba(0,0,0,.65);
+  box-shadow:var(--sombra-modal);
   display:flex;flex-direction:column;overflow:hidden;
 }
 .modal-hd{display:flex;align-items:center;gap:14px;padding:20px 22px 17px;border-bottom:1px solid var(--line)}

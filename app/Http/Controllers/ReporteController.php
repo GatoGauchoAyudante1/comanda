@@ -131,7 +131,8 @@ class ReporteController extends Controller
             'cash' => 'Efectivo', 'qr' => 'QR / MP', 'transfer' => 'Transferencia',
             'debit' => 'Débito', 'credit' => 'Crédito', 'other' => 'Otro',
         ];
-        $colores = ['#28BE7E', '#2C8A62', '#20604A', '#27302D', '#3E4B46', '#55635D'];
+        // Variables CSS: los graficos cambian con el tema (ver sistema.css).
+        $colores = ['var(--serie-1)', 'var(--serie-2)', 'var(--serie-3)', 'var(--serie-4)', 'var(--txt-3)', 'var(--line-2)'];
 
         return [
             'total'  => $total,

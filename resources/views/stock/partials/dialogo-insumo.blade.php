@@ -26,7 +26,8 @@
             <div class="modal-sec grid2">
                 <div class="field">
                     <label for="i-unit">Se mide en</label>
-                    <select id="i-unit" class="inp" name="base_unit" x-model="insumo.base_unit">
+                    <select id="i-unit" class="inp" name="base_unit" x-model="insumo.base_unit"
+                            @change="cambiarBase()">
                         <option value="g">Peso (gramos y kilos)</option>
                         <option value="ml">Volumen (ml y litros)</option>
                         <option value="un">Unidades</option>
@@ -46,16 +47,16 @@
                 <div class="field">
                     <label for="i-min">Stock mínimo</label>
                     <input id="i-min" class="inp" type="number" step="0.01" min="0" name="min_stock"
-                           required inputmode="decimal" placeholder="10">
+                           x-model="insumo.min_stock" required inputmode="decimal" placeholder="10">
                 </div>
                 <div class="field">
                     <label for="i-cost">Costo</label>
                     <input id="i-cost" class="inp" type="number" step="0.01" min="0" name="cost"
-                           required inputmode="decimal" placeholder="8900">
+                           x-model="insumo.cost" required inputmode="decimal" placeholder="8900">
                 </div>
                 <div class="field">
                     <label for="i-unidad">Por</label>
-                    <select id="i-unidad" class="inp" name="unidad">
+                    <select id="i-unidad" class="inp" name="unidad" x-model="unidad">
                         <template x-for="u in unidadesDe(insumo?.base_unit ?? 'g')" :key="u">
                             <option :value="u" x-text="u"></option>
                         </template>

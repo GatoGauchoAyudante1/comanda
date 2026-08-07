@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    @include('partials.tema-script')
+
     <title>Cocina · {{ \App\Support\Negocio::nombre() }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,6 +39,7 @@
                 </span>
             @endif
         </div>
+        <x-tema />
         <span class="money m-md">{{ now()->format('H:i') }}</span>
 
         {{--

@@ -11,7 +11,7 @@
 @section('titulo', 'Receta')
 
 @section('topbar')
-    <a class="back" href="{{ route('stock') }}"><x-icono nombre="back" /></a>
+    <a class="back" href="{{ route('recetas') }}"><x-icono nombre="back" /></a>
     <div>
         <h1>Receta · {{ $producto->name }}</h1>
         <div class="sub">
@@ -165,15 +165,15 @@
                 @if ($margen !== null)
                     @php $dash = (int) round(415 * min(100, max(0, $margen)) / 100); @endphp
                     <svg width="168" height="168" viewBox="0 0 168 168" style="display:block;margin:0 auto">
-                        <circle cx="84" cy="84" r="66" fill="none" stroke="#191F1D" stroke-width="12"/>
-                        <circle cx="84" cy="84" r="66" fill="none" stroke="#28BE7E" stroke-width="12"
+                        <circle cx="84" cy="84" r="66" fill="none" style="stroke:var(--panel-3)" stroke-width="12"/>
+                        <circle cx="84" cy="84" r="66" fill="none" style="stroke:var(--green)" stroke-width="12"
                                 stroke-linecap="round" stroke-dasharray="{{ $dash }} 415"
                                 transform="rotate(-90 84 84)"/>
-                        <text x="84" y="80" text-anchor="middle" fill="#F1F4F2"
+                        <text x="84" y="80" text-anchor="middle" style="fill:var(--txt)"
                               font-size="34" font-weight="700" font-family="Outfit,sans-serif">
                             {{ number_format($margen, 1, ',', '.') }}%
                         </text>
-                        <text x="84" y="104" text-anchor="middle" fill="#8B948F"
+                        <text x="84" y="104" text-anchor="middle" style="fill:var(--txt-2)"
                               font-size="14" font-family="Outfit,sans-serif">de margen</text>
                     </svg>
                     <div class="hr"></div>

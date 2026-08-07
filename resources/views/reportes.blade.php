@@ -129,18 +129,18 @@
                                 @php
                                     $largo = $circ * $l['pct'] / 100;
                                 @endphp
-                                <circle cx="88" cy="88" r="{{ $r }}" fill="none" stroke="{{ $l['color'] }}"
+                                <circle cx="88" cy="88" r="{{ $r }}" fill="none" style="stroke:{{ $l['color'] }}"
                                         stroke-width="22"
                                         stroke-dasharray="{{ round(max(0, $largo - 2), 1) }} {{ round($circ, 1) }}"
                                         stroke-dashoffset="{{ round(-$offset, 1) }}"></circle>
                                 @php $offset += $largo; @endphp
                             @endforeach
                         </g>
-                        <text x="88" y="84" text-anchor="middle" fill="#F1F4F2" font-size="22"
+                        <text x="88" y="84" text-anchor="middle" style="fill:var(--txt)" font-size="22"
                               font-weight="700" font-family="Outfit,sans-serif">
                             {{ \App\Support\Plata::format($medios['total']) }}
                         </text>
-                        <text x="88" y="105" text-anchor="middle" fill="#8B948F" font-size="13"
+                        <text x="88" y="105" text-anchor="middle" style="fill:var(--txt-2)" font-size="13"
                               font-family="Outfit,sans-serif">{{ $actual['tickets'] }} tickets</text>
                     </svg>
 

@@ -25,6 +25,8 @@
         ['id' => 'caja',     'label' => 'Caja',     'ruta' => 'caja',     'roles' => ['cajero'],           'modulo' => true],
         ['id' => 'carta',    'label' => 'Carta',    'ruta' => 'carta',    'roles' => [],                   'modulo' => true],
         ['id' => 'stock',    'label' => 'Stock',    'ruta' => 'stock',    'roles' => [],                   'modulo' => $modulos['stock']],
+        // Sólo el dueño: las recetas son el costo del negocio (R-27).
+        ['id' => 'recetas',  'label' => 'Recetas',  'ruta' => 'recetas',  'roles' => [],                   'modulo' => $modulos['stock']],
         ['id' => 'historial','label' => 'Historial','ruta' => 'historial','roles' => ['cajero'],           'modulo' => true],
         ['id' => 'reportes', 'label' => 'Reportes', 'ruta' => 'reportes', 'roles' => [],                   'modulo' => true],
         ['id' => 'config',   'label' => 'Ajustes',  'ruta' => 'configuracion', 'roles' => [],              'modulo' => true],
@@ -41,7 +43,11 @@
         return $rol === 'dueno' || in_array($rol, $item['roles'], true);
     });
 
+    // Las subpantallas marcan su módulo: estando en una receta o en un
+    // conteo, el rail tiene que seguir señalando de dónde se entró.
+    $padres     = ['receta' => 'recetas', 'conteo' => 'stock'];
     $rutaActual = $activo ?? request()->route()?->getName();
+    $rutaActual = $padres[$rutaActual] ?? $rutaActual;
 @endphp
 
 <aside class="rail">

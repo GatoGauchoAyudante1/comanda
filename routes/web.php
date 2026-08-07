@@ -136,6 +136,7 @@ Route::middleware('auth')->group(function () {
 
     // Las recetas definen costos: sólo el dueño (R-27).
     Route::middleware('rol:dueno')->group(function () {
+        Route::get('/stock/recetas', [RecetaController::class, 'index'])->name('recetas');
         Route::get('/stock/recetas/{producto}', [RecetaController::class, 'mostrar'])->name('receta');
         Route::post('/stock/recetas/{producto}', [RecetaController::class, 'guardarLinea'])->name('receta.linea');
         Route::delete('/stock/recetas/{producto}/{linea}', [RecetaController::class, 'borrarLinea'])->name('receta.linea.borrar');

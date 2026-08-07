@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    @include('partials.tema-script')
+
     <title>Entrar · {{ \App\Support\Negocio::nombre() }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +15,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
+
+{{-- El interruptor también acá: es donde se entra por primera vez en un equipo. --}}
+<div style="position:fixed;top:20px;right:20px;z-index:10">
+    <x-tema />
+</div>
 
 <div style="min-height:100vh;display:grid;place-items:center;padding:24px">
     <div style="width:100%;max-width:420px">

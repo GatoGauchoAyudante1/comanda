@@ -18,6 +18,48 @@ use Illuminate\Http\Request;
  */
 class RecetaController extends Controller
 {
+    /**
+     * Índice del módulo. Es la puerta de entrada del rail.
+     *
+     * Antes se llegaba a las recetas sólo desde el botón «Ver receta» de
+     * /stock, que se dibuja a partir de produccionPosible() — y ésa sólo
+     * devuelve productos que YA tienen receta. En un negocio nuevo no había
+     * forma de cargar la primera.
+     */
+    public function index(Request $request): View
+    {
+        // Las dos formas de pensar la misma tabla. Ver docs/02-decisiones.md · D-09.
+        $vista = $request->string('vista')->toString() === 'insumo' ? 'insumo' : 'producto';
+
+        $productos = Product::query()
+            ->where('active', true)
+            ->with(['recipe.ingredient', 'category'])
+            ->orderBy('name')
+            ->get();
+
+        [$conReceta, $sinReceta] = $productos->partition(fn (Product $p) => $p->recipe->isNotEmpty());
+
+        // Ordenados por margen: lo primero que el dueño quiere ver es lo que menos deja.
+        $conReceta = $conReceta->sortBy(fn (Product $p) => $p->margen() ?? INF)->values();
+        $margenes  = $conReceta->map->margen()->filter(fn (?float $m) => $m !== null);
+
+        return view('stock.recetas', [
+            'vista'      => $vista,
+            'conReceta'  => $conReceta,
+            // Los que no controlan stock no necesitan receta: no son un pendiente.
+            'pendientes' => $sinReceta->where('tracks_stock', true)->values(),
+            'sueltos'    => $sinReceta->where('tracks_stock', false)->values(),
+            'margenProm' => $margenes->isNotEmpty() ? round($margenes->avg(), 1) : null,
+
+            // Para la vista por insumo: quién lo usa y en cuánto.
+            'insumos'    => Ingredient::where('active', true)
+                ->with('recipeItems.product')
+                ->orderBy('name')
+                ->get(),
+            'destinos'   => $productos,
+        ]);
+    }
+
     public function mostrar(Product $producto): View
     {
         $producto->load(['recipe.ingredient', 'category', 'variants']);

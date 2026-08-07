@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    @include('partials.tema-script')
+
     <title>@yield('titulo', 'Atención') · {{ \App\Support\Negocio::nombre() }}</title>
 
     {{-- PWA: se instala en el celular con ícono propio. Sin caché (D-05). --}}
@@ -48,6 +50,8 @@
                     @endif
                 </div>
             @endif
+
+            <x-tema />
         </header>
 
         <div class="content">

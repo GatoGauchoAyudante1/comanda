@@ -31,6 +31,7 @@
                     Mientras falten recetas, el control de stock muestra menos consumo del real.
                 </div>
             </div>
+            <a class="btn btn-sm" href="{{ route('recetas') }}">Ver recetas</a>
         </div>
     @endif
 
@@ -119,10 +120,18 @@
                                 </td>
 
                                 <td>
+                                    {{-- El chip es el link: se detecta el problema acá,
+                                         así que la salida tiene que estar acá. --}}
                                     @if ($conReceta)
-                                        <span class="chip chip-green">{{ $p->recipe->count() }} insumos</span>
+                                        <a class="chip chip-green" href="{{ route('receta', $p) }}"
+                                           title="Ver la receta de {{ $p->name }}">
+                                            {{ $p->recipe->count() }} insumos
+                                        </a>
                                     @elseif ($p->tracks_stock)
-                                        <span class="chip chip-amber">sin receta</span>
+                                        <a class="chip chip-amber" href="{{ route('receta', $p) }}"
+                                           title="Cargar la receta de {{ $p->name }}">
+                                            sin receta →
+                                        </a>
                                     @else
                                         <span class="chip chip-line">no controla</span>
                                     @endif
