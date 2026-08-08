@@ -38,6 +38,7 @@ class AuditEvent extends Model
         'caja'   => ['Caja', 'amber'],
         'cadete' => ['Repartidores', 'blue'],
         'stock'  => ['Stock', 'amber'],
+        'carta'  => ['Precios', 'amber'],
         'config' => ['Configuración', 'line'],
     ];
 

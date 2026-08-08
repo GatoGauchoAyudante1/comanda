@@ -7,6 +7,7 @@ use App\Models\Table;
 use App\Models\TableRate;
 use App\Models\User;
 use App\Models\Zone;
+use App\Support\Bitacora;
 use App\Support\Negocio;
 use App\Support\Plata;
 use Illuminate\Contracts\View\View;
@@ -221,16 +222,31 @@ class ConfiguracionController extends Controller
             'name'  => $datos['name'],
             'email' => $datos['email'],
             'role'  => $datos['role'],
+            // Al dueño la marca no le cambia nada: puede siempre (R-39).
+            'can_edit_prices' => $datos['role'] !== 'dueno' && $request->boolean('can_edit_prices'),
         ];
 
         if (! empty($datos['password'])) {
             $valores['password'] = Hash::make($datos['password']);
         }
 
+        $preciosAntes = (bool) $usuario?->puedeEditarPrecios();
+
         if ($usuario?->exists) {
             $usuario->update($valores);
         } else {
-            User::create([...$valores, 'active' => true]);
+            $usuario = User::create([...$valores, 'active' => true]);
+        }
+
+        // Dar o sacar el permiso de precios queda registrado: es plata (R-39).
+        if ($usuario->puedeEditarPrecios() !== $preciosAntes) {
+            Bitacora::registrar(
+                'config.precios',
+                $usuario->puedeEditarPrecios()
+                    ? "{$usuario->name} puede cambiar precios"
+                    : "{$usuario->name} ya no puede cambiar precios",
+                $usuario,
+            );
         }
 
         return back()->with('ok', 'Usuario guardado.');

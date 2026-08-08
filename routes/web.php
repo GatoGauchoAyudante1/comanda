@@ -110,13 +110,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/caja/cierre/{caja}', [CajaController::class, 'verCierre'])->name('caja.cierre');
     });
 
-    // Administración: sólo el dueño (R-27).
+    // Qué se vende y cómo se llama: sólo el dueño (R-27).
     Route::middleware('rol:dueno')->group(function () {
-        Route::get('/carta', [CartaController::class, 'index'])->name('carta');
         Route::post('/carta/productos', [CartaController::class, 'guardarProducto'])->name('carta.producto');
         Route::post('/carta/productos/{producto}', [CartaController::class, 'guardarProducto'])->name('carta.producto.actualizar');
         Route::post('/carta/productos/{producto}/alternar', [CartaController::class, 'alternar'])->name('carta.alternar');
         Route::post('/carta/categorias', [CartaController::class, 'guardarCategoria'])->name('carta.categoria');
+    });
+
+    // Cuánto sale: el dueño y quien él habilite, usuario por usuario (R-39).
+    // La pantalla es la misma; sin permiso de dueño muestra menos.
+    Route::middleware('precios')->group(function () {
+        Route::get('/carta', [CartaController::class, 'index'])->name('carta');
+        Route::post('/carta/productos/{producto}/precio', [CartaController::class, 'actualizarPrecio'])->name('carta.precio');
         Route::post('/carta/precios', [CartaController::class, 'ajustarPrecios'])->name('carta.precios');
     });
 

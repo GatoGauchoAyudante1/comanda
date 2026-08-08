@@ -6,7 +6,12 @@
 
     @include('partials.tema-script')
 
-    <title>Entrar · {{ \App\Support\Negocio::nombre() }}</title>
+    {{--
+      Acá va el nombre del SISTEMA (APP_NAME), no el del negocio: todavía nadie
+      entró, así que esta pantalla es la marca del producto. El nombre del
+      cliente (Negocio::nombre) sale en el ticket. Ver docs/02-decisiones.md · D-02.
+    --}}
+    <title>Entrar · {{ config('app.name') }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,10 +31,10 @@
 
         <div class="col" style="align-items:center;gap:16px;margin-bottom:28px">
             <div class="brand" style="width:60px;height:60px;font-size:28px;margin:0">
-                {{ mb_substr(\App\Support\Negocio::nombre(), 0, 1) }}
+                {{ mb_substr(config('app.name'), 0, 1) }}
             </div>
             <div style="text-align:center">
-                <h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em">{{ \App\Support\Negocio::nombre() }}</h1>
+                <h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em">{{ config('app.name') }}</h1>
                 <div class="t-dim fs14 mt4">Entrá para empezar el turno</div>
             </div>
         </div>

@@ -7,7 +7,8 @@
 
     @include('partials.tema-script')
 
-    <title>@yield('titulo', 'Atención') · {{ \App\Support\Negocio::nombre() }}</title>
+    {{-- El título de la pestaña lleva el nombre del sistema; el del negocio va en el ticket. --}}
+    <title>@yield('titulo', 'Atención') · {{ config('app.name') }}</title>
 
     {{-- PWA: se instala en el celular con ícono propio. Sin caché (D-05). --}}
     <link rel="manifest" href="{{ route('pwa.manifest') }}">

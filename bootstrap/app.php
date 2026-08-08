@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'rol' => \App\Http\Middleware\VerificarRol::class,
+            // Permiso delegable, no rol: ver docs/06-reglas-negocio.md · R-39.
+            'precios' => \App\Http\Middleware\VerificarPrecios::class,
         ]);
 
         // Cada rol entra a lo suyo. Ver docs/06-reglas-negocio.md R-27 a R-29.

@@ -6,7 +6,7 @@
 
     @include('partials.tema-script')
 
-    <title>Cocina · {{ \App\Support\Negocio::nombre() }}</title>
+    <title>Cocina · {{ config('app.name') }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

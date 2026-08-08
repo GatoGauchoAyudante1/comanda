@@ -15,7 +15,9 @@
     </div>
     <div class="topbar-actions">
         <button class="btn hide-mobile" @click="lote = true">Actualizar precios en lote</button>
-        <button class="btn btn-primary" @click="abrirNuevo()">+ Nuevo producto</button>
+        @if ($esDueno)
+            <button class="btn btn-primary" @click="abrirNuevo()">+ Nuevo producto</button>
+        @endif
     </div>
 @endsection
 
@@ -46,8 +48,10 @@
                     {{ $cat->name }} <span class="n">{{ $cat->products_count }}</span>
                 </a>
             @endforeach
-            <div class="hr"></div>
-            <button class="btn btn-dashed btn-block btn-sm" @click="categoria = true">+ Categoría</button>
+            @if ($esDueno)
+                <div class="hr"></div>
+                <button class="btn btn-dashed btn-block btn-sm" @click="categoria = true">+ Categoría</button>
+            @endif
         </div>
 
         <div class="filters only-mobile">
@@ -63,23 +67,25 @@
         <div>
             <div class="card card-flush">
                 <div class="tbl-wrap">
-                    <table class="tbl" style="min-width:820px">
+                    <table class="tbl" style="min-width:{{ $esDueno ? 820 : 420 }}px">
                         <thead>
                             <tr>
                                 <th>Producto</th>
                                 <th class="num">Precio</th>
-                                <th class="num">Costo</th>
-                                <th>Margen</th>
-                                <th>Receta</th>
-                                <th>Va a cocina</th>
-                                <th>Activo</th>
+                                @if ($esDueno)
+                                    <th class="num">Costo</th>
+                                    <th>Margen</th>
+                                    <th>Receta</th>
+                                    <th>Va a cocina</th>
+                                    <th>Activo</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
                         @forelse ($productos as $p)
                             @php
-                                $margen    = $p->margen();
-                                $conReceta = $p->recipe->isNotEmpty();
+                                $margen    = $esDueno ? $p->margen() : null;
+                                $conReceta = $esDueno && $p->recipe->isNotEmpty();
 
                                 // Lo que carga el diálogo de edición.
                                 $json = json_encode([
@@ -93,15 +99,40 @@
                             @endphp
                             <tr @class(['off' => ! $p->active])>
                                 <td class="lead">
-                                    <button type="button" class="link-editar" @click="editar({{ $json }})">
-                                        {{ $p->name }}
-                                    </button>
+                                    @if ($esDueno)
+                                        <button type="button" class="link-editar" @click="editar({{ $json }})"
+                                                title="Editar «{{ $p->name }}»">
+                                            {{ $p->name }}
+                                        </button>
+                                    @else
+                                        {{-- Sin permiso de dueño el nombre no se toca: sólo el precio. --}}
+                                        <span class="fw5">{{ $p->name }}</span>
+                                    @endif
                                     @if ($p->variants->isNotEmpty())
                                         <div class="fs12 t-mute mt4">{{ $p->variants->pluck('name')->join(' · ') }}</div>
                                     @endif
                                 </td>
 
-                                <td class="num">@plata($p->price)</td>
+                                {{-- El precio se edita acá mismo: se escribe y se sale del campo
+                                     (o Enter) y el formulario se manda solo. Sin Alpine a propósito,
+                                     así sigue andando aunque el diálogo no cargue. --}}
+                                <td class="num">
+                                    <form class="precio-edit" method="POST" action="{{ route('carta.precio', $p) }}">
+                                        @csrf
+                                        <span class="signo">$</span>
+                                        <input class="inp-precio" type="number" name="price"
+                                               min="0" step="1" inputmode="numeric"
+                                               value="{{ $p->price / 100 }}"
+                                               aria-label="Precio de {{ $p->name }}"
+                                               title="Escribí el precio nuevo y tocá Enter"
+                                               onfocus="this.select()"
+                                               onchange="this.form.requestSubmit()"
+                                               onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}
+                                                          if(event.key==='Escape'){this.value=this.defaultValue;this.blur()}">
+                                    </form>
+                                </td>
+                                {{-- Costo, margen y receta son la ganancia del negocio: sólo el dueño (R-27). --}}
+                                @if ($esDueno)
                                 <td class="num t-mute">
                                     {{ $conReceta ? \App\Support\Plata::format($p->costo()) : '—' }}
                                 </td>
@@ -154,9 +185,10 @@
                                                 style="border:none;cursor:pointer"></button>
                                     </form>
                                 </td>
+                                @endif
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="t-mute">Esta categoría todavía no tiene productos.</td></tr>
+                            <tr><td colspan="{{ $esDueno ? 7 : 2 }}" class="t-mute">Esta categoría todavía no tiene productos.</td></tr>
                         @endforelse
                         </tbody>
                     </table>
@@ -168,6 +200,11 @@
             </button>
         </div>
     </div>
+
+    {{-- Alta y edición de productos y categorías: sólo el dueño (R-27).
+         Quien tiene el permiso de precios no ve estos diálogos, y las rutas
+         que están detrás le devuelven 403 igual. --}}
+    @if ($esDueno)
 
     {{-- ============================================================
          DIÁLOGO: PRODUCTO
@@ -272,6 +309,8 @@
             </div>
         </form>
     </div>
+
+    @endif
 
     {{-- ============================================================
          DIÁLOGO: PRECIOS EN LOTE

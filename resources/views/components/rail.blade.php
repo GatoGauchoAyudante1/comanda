@@ -23,7 +23,9 @@
         // porque le mostraría SUS envíos, que siempre están vacíos.
         ['id' => 'pedidos',  'label' => 'Envíos',   'ruta' => 'envios',   'roles' => ['repartidor'],       'modulo' => $modulos['delivery'], 'exclusivo' => true],
         ['id' => 'caja',     'label' => 'Caja',     'ruta' => 'caja',     'roles' => ['cajero'],           'modulo' => true],
-        ['id' => 'carta',    'label' => 'Carta',    'ruta' => 'carta',    'roles' => [],                   'modulo' => true],
+        // `aparte`: permiso delegado por usuario, no por rol. Quien puede
+        // cambiar precios entra a la Carta aunque su rol no la tenga (R-39).
+        ['id' => 'carta',    'label' => 'Carta',    'ruta' => 'carta',    'roles' => [],                   'modulo' => true, 'aparte' => (bool) $usuario?->puedeEditarPrecios()],
         ['id' => 'stock',    'label' => 'Stock',    'ruta' => 'stock',    'roles' => [],                   'modulo' => $modulos['stock']],
         // Sólo el dueño: las recetas son el costo del negocio (R-27).
         ['id' => 'recetas',  'label' => 'Recetas',  'ruta' => 'recetas',  'roles' => [],                   'modulo' => $modulos['stock']],
@@ -40,7 +42,9 @@
             return in_array($rol, $item['roles'], true);
         }
 
-        return $rol === 'dueno' || in_array($rol, $item['roles'], true);
+        return $rol === 'dueno'
+            || in_array($rol, $item['roles'], true)
+            || ($item['aparte'] ?? false);
     });
 
     // Las subpantallas marcan su módulo: estando en una receta o en un

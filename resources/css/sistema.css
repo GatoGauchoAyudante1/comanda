@@ -676,12 +676,34 @@ select.inp optgroup{
 .cat.is-on{background:var(--green-dim);color:var(--green);font-weight:600}
 .cat .n{margin-left:auto;font-size:13px;opacity:.7}
 
-/* el nombre del producto abre el diálogo de edición */
+/* el nombre del producto abre el diálogo de edición.
+   El subrayado punteado es la única señal de que se puede tocar:
+   sin él parece texto y nadie lo descubre. */
 .link-editar{
   border:none;background:none;padding:0;cursor:pointer;text-align:left;
   font:inherit;color:inherit;font-weight:500;
+  text-decoration:underline dotted var(--line-2);text-underline-offset:4px;
 }
-.link-editar:hover{color:var(--green);text-decoration:underline}
+.link-editar:hover{color:var(--green);text-decoration:underline solid}
+
+/* precio editable dentro de la fila: se ve como texto hasta que se pasa por
+   arriba, para que la tabla no parezca un formulario gigante */
+.precio-edit{
+  display:inline-flex;align-items:center;gap:1px;
+  padding:5px 8px;border-radius:9px;
+  border:1px solid transparent;background:transparent;
+  transition:background .12s,border-color .12s;
+}
+.precio-edit .signo{color:var(--txt-2);font-weight:600}
+.tbl tr:hover .precio-edit{border-color:var(--line-2);background:var(--panel)}
+.precio-edit:focus-within{border-color:var(--green);background:var(--panel)}
+.inp-precio{
+  width:82px;border:none;outline:none;background:none;padding:0;
+  font:inherit;font-weight:600;color:inherit;text-align:right;
+  -moz-appearance:textfield;appearance:textfield;
+}
+.inp-precio::-webkit-outer-spin-button,
+.inp-precio::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
 /* los switches de la tabla son botones de un formulario */
 .tbl .sw{border:none;padding:0;cursor:pointer}

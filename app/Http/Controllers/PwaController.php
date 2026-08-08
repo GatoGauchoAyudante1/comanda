@@ -9,7 +9,7 @@ use Illuminate\Http\Response;
  * Manifiesto y service worker de la PWA.
  *
  * Se sirven por ruta y no como archivos estáticos porque el nombre, el color
- * y la pantalla de inicio dependen de la configuración del negocio (D-02).
+ * y la pantalla de inicio dependen de la configuración de la instalación (D-02).
  *
  * IMPORTANTE: el service worker NO cachea nada de la aplicación. Se limita a
  * lo mínimo para que el navegador la ofrezca como instalable. Cachear
@@ -20,7 +20,9 @@ class PwaController extends Controller
 {
     public function manifest(): JsonResponse
     {
-        $nombre = \App\Support\Negocio::nombre();
+        // El ícono que queda en el celular es el del sistema, no el del cliente:
+        // el mozo instala "Comandas", no el nombre del bar.
+        $nombre = config('app.name');
 
         return response()->json([
             'name'             => $nombre,

@@ -46,7 +46,7 @@
                             <label for="nombre">Nombre</label>
                             <input id="nombre" class="inp" name="nombre" required maxlength="60"
                                    value="{{ Negocio::nombre() }}">
-                            <span class="fs13 t-mute">Aparece en el ticket, el título y el ícono de la app.</span>
+                            <span class="fs13 t-mute">Es el nombre del negocio: aparece en el encabezado del ticket.</span>
                         </div>
                         <div class="field">
                             <label for="punto_venta">Punto de venta</label>
@@ -302,6 +302,7 @@
                     @php
                         $json = json_encode(['id' => $u->id, 'name' => $u->name,
                             'email' => $u->email, 'role' => $u->role,
+                            'precios' => (bool) $u->can_edit_prices,
                             'borrable' => (bool) $u->borrable, 'yo' => $u->id === auth()->id()],
                             JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
                     @endphp
@@ -315,6 +316,11 @@
                                 @unless ($u->active) · <span class="t-amber">sin acceso</span> @endunless
                             </div>
                         </div>
+                        {{-- El permiso de precios se ve de un vistazo: es el único
+                             que se delega fuera del rol (R-39). --}}
+                        @if ($u->can_edit_prices && ! $u->esDueno())
+                            <span class="chip chip-amber" title="Puede cambiar precios de la carta">Precios</span>
+                        @endif
                         <span class="chip chip-line">{{ ucfirst($u->role) }}</span>
                         <form method="POST" action="{{ route('configuracion.usuario.alternar', $u) }}">
                             @csrf
@@ -326,7 +332,7 @@
                 @endforeach
 
                 <button class="btn btn-dashed btn-block mt16"
-                        @click="usuario = { id: null, name: '', email: '', role: 'mozo', borrable: false, yo: false }">
+                        @click="usuario = { id: null, name: '', email: '', role: 'mozo', precios: false, borrable: false, yo: false }">
                     + Nuevo usuario
                 </button>
 
@@ -529,6 +535,29 @@
                            :required="!usuario?.id"
                            :placeholder="usuario?.id ? 'Dejala vacía para no cambiarla' : 'Mínimo 8 caracteres'">
                 </div>
+
+                {{-- Permiso delegado, no rol (R-39). Al dueño no se le ofrece:
+                     puede siempre, y una casilla apagada mentiría. --}}
+                <template x-if="usuario?.role !== 'dueno'">
+                    <label class="half mt16" style="cursor:pointer">
+                        <input type="checkbox" name="can_edit_prices" value="1" x-model="usuario.precios"
+                               style="width:18px;height:18px;accent-color:var(--green)">
+                        <div class="grow">
+                            <div class="fw6">Puede cambiar precios</div>
+                            <div class="fs13 t-mute">
+                                Entra a la Carta y edita precios, de a uno o en lote.
+                                No ve costos ni márgenes, y no puede crear ni renombrar productos.
+                            </div>
+                        </div>
+                    </label>
+                </template>
+
+                <template x-if="usuario?.role === 'dueno'">
+                    <div class="notice mt16">
+                        <span class="dot dot-mute"></span>
+                        <div class="ds">El dueño puede cambiar precios siempre.</div>
+                    </div>
+                </template>
             </div>
             <div class="modal-ft">
                 {{-- Borrar sólo aparece si el usuario nunca operó (R-37). --}}
