@@ -10,6 +10,7 @@ use App\Models\Zone;
 use App\Support\Bitacora;
 use App\Support\Negocio;
 use App\Support\Plata;
+use App\Support\Qr;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,6 +44,68 @@ class ConfiguracionController extends Controller
             'mesas'        => Table::orderBy('type')->orderBy('sort_order')->get()->groupBy('type'),
             'rolesCocina'  => self::ROLES_COCINA,
             'marcanListo'  => Negocio::rolesQueMarcanListo(),
+            'cartaPublica' => Negocio::cartaPublica(),
+            'cartaMensaje' => Negocio::cartaMensaje(),
+            'cartaUrl'     => route('carta.publica'),
+            // El QR sólo se dibuja si la carta está publicada: si el link
+            // devuelve 404, mostrarlo sería invitar a imprimir un cartel roto.
+            'cartaQr'      => Negocio::cartaPublica() ? Qr::svg(route('carta.publica'), 190) : null,
+        ]);
+    }
+
+    /**
+     * Publicar o despublicar la carta.
+     *
+     * Queda en la bitácora porque es el único interruptor del sistema que
+     * cambia qué ve alguien de afuera: si aparecen los precios en internet,
+     * tiene que estar claro quién los puso ahí y cuándo.
+     */
+    public function alternarCartaPublica(): RedirectResponse
+    {
+        $nuevo = ! Negocio::cartaPublica();
+
+        Setting::put('menu.public', $nuevo ? '1' : '0', 'bool');
+        Negocio::olvidar();
+
+        Bitacora::registrar(
+            'config.carta',
+            $nuevo ? 'Carta publicada al público' : 'Carta despublicada',
+            meta: ['url' => route('carta.publica')],
+        );
+
+        return back()->with('ok', $nuevo
+            ? 'La carta ya se puede ver en ' . route('carta.publica')
+            : 'La carta dejó de ser pública. El link ahora no existe.');
+    }
+
+    public function guardarCarta(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'mensaje' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        Setting::put('menu.note', $datos['mensaje'] ?? '');
+        Negocio::olvidar();
+
+        return back()->with('ok', 'Mensaje de la carta guardado.');
+    }
+
+    /**
+     * Hoja lista para imprimir con el QR de la carta.
+     *
+     * Se imprime y se pega en la mesa, así que sale en su propia página, en
+     * blanco y negro y sin nada del sistema alrededor.
+     */
+    public function qr(): View
+    {
+        abort_unless(Negocio::cartaPublica(), 404, 'La carta no está publicada.');
+
+        $url = route('carta.publica');
+
+        return view('configuracion.qr', [
+            'negocio' => Negocio::nombre(),
+            'url'     => $url,
+            'svg'     => Qr::svg($url, 460),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AjustarPrecios;
+use App\Actions\GuardarFotoProducto;
 use App\Models\Category;
 use App\Models\Product;
 use App\Support\Bitacora;
@@ -47,7 +48,12 @@ class CartaController extends Controller
         ]);
     }
 
-    public function guardarProducto(Request $request, ?Product $producto = null): RedirectResponse
+    /**
+     * La acción de fotos se inyecta antes del producto porque el producto es
+     * opcional (la misma ruta da de alta y edita) y PHP no admite un parámetro
+     * opcional delante de uno obligatorio.
+     */
+    public function guardarProducto(Request $request, GuardarFotoProducto $fotos, ?Product $producto = null): RedirectResponse
     {
         $datos = $request->validate([
             'name'            => ['required', 'string', 'max:120', Rule::unique('products', 'name')->ignore($producto)],
@@ -55,10 +61,16 @@ class CartaController extends Controller
             'price'           => ['required', 'numeric', 'min:0'],
             'goes_to_kitchen' => ['nullable', 'boolean'],
             'tracks_stock'    => ['nullable', 'boolean'],
+            // El tope va por debajo del que aceptan nginx y PHP (deploy/config.sh
+            // · MAX_UPLOAD): así el que sube una foto grande ve un error del
+            // formulario y no una pantalla de error del servidor.
+            'foto'            => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:6144'],
+            'quitar_foto'     => ['nullable', 'boolean'],
         ]);
 
         $valores = [
-            ...$datos,
+            'name'            => $datos['name'],
+            'category_id'     => $datos['category_id'],
             'price'           => Plata::aCentavos($datos['price']),
             'goes_to_kitchen' => $request->boolean('goes_to_kitchen'),
             'tracks_stock'    => $request->boolean('tracks_stock'),
@@ -70,6 +82,15 @@ class CartaController extends Controller
         } else {
             $producto = Product::create([...$valores, 'active' => true]);
             $mensaje  = "«{$producto->name}» agregado a la carta.";
+        }
+
+        // Después de guardar: el nombre del archivo lleva el id del producto,
+        // que en un alta todavía no existe.
+        if ($request->hasFile('foto')) {
+            $producto->update(['image_path' => $fotos($producto, $request->file('foto'))]);
+        } elseif ($request->boolean('quitar_foto')) {
+            $fotos->borrar($producto);
+            $producto->update(['image_path' => null]);
         }
 
         return redirect()

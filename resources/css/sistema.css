@@ -120,13 +120,20 @@
 }
 
 /* El botón de tema: muestra a dónde va, no dónde está. */
-.tema-btn{
+/* El de ayuda comparte forma con el de tema: son los dos botones fijos de la
+   barra superior y tienen que leerse como un par, no como dos cosas sueltas. */
+.tema-btn,.ayuda-btn{
   flex:none;width:42px;height:42px;border-radius:12px;
   border:1px solid var(--line-2);background:transparent;color:var(--txt-2);
   display:grid;place-items:center;cursor:pointer;transition:.15s;
 }
-.tema-btn:hover{color:var(--txt);border-color:var(--txt-3);background:var(--panel-2)}
-.tema-btn svg{width:19px;height:19px;stroke-width:1.8}
+.tema-btn:hover,.ayuda-btn:hover{color:var(--txt);border-color:var(--txt-3);background:var(--panel-2)}
+.tema-btn svg,.ayuda-btn svg{width:19px;height:19px;stroke-width:1.8}
+.ayuda-btn:hover{color:var(--green);border-color:var(--green-line)}
+/* En las pantallas que no declaran `.topbar-actions` (abrir y cerrar caja,
+   conteo) no hay nada que empuje: sin esto los dos botones quedan pegados al
+   título en vez de en el borde, donde están en todas las demás. */
+.topbar:not(:has(.topbar-actions)) > .ayuda-btn{margin-left:auto}
 .tema-btn .a-claro{display:block}
 .tema-btn .a-oscuro{display:none}
 :root[data-tema="claro"] .tema-btn .a-claro{display:none}
@@ -588,6 +595,24 @@ input{font:inherit}
 }
 .inp:focus{border-color:var(--green-line);background:var(--green-dim)}
 .inp::placeholder{color:var(--txt-3)}
+/* El ojo para ver la clave, adentro del propio campo.
+   El padding extra a la derecha es para que el texto no se meta abajo del botón. */
+.inp-ojo{position:relative}
+.inp-ojo .inp{padding-right:52px}
+.ojo{
+  position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  width:36px;height:36px;display:grid;place-items:center;
+  border:none;background:none;padding:0;border-radius:10px;
+  color:var(--txt-3);cursor:pointer;
+}
+.ojo:hover{color:var(--txt);background:var(--panel-2)}
+.ojo svg{width:20px;height:20px;stroke-width:1.7}
+/* Tapado: se ofrece el ojo abierto («mostrar»). Destapado: el tachado («ocultar»). */
+.ojo .ojo-tapar{display:none}
+.ojo.is-on{color:var(--green)}
+.ojo.is-on .ojo-ver{display:none}
+.ojo.is-on .ojo-tapar{display:block}
+
 .inp-lg{height:58px;font-size:19px;font-weight:500}
 .inp-sm{height:42px;font-size:15px;border-radius:11px}
 textarea.inp{height:auto;padding:13px 15px;resize:vertical;min-height:74px;font-size:15px}
@@ -707,6 +732,34 @@ select.inp optgroup{
 
 /* los switches de la tabla son botones de un formulario */
 .tbl .sw{border:none;padding:0;cursor:pointer}
+
+/* ------------------------------------------------------------
+   FOTO DEL PRODUCTO
+   La foto es para la carta pública. Adentro del sistema aparece chica y
+   siempre en el mismo lugar: el hueco punteado del que no tiene foto es
+   la forma de ver, recorriendo la columna, qué falta cargar.
+   ------------------------------------------------------------ */
+.miniatura{
+  flex:none;width:34px;height:34px;border-radius:8px;
+  object-fit:cover;background:var(--panel-2);border:1px solid var(--line);
+}
+.miniatura-vacia{border-style:dashed;border-color:var(--line-2)}
+
+.foto-campo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.foto-previa{
+  flex:none;width:76px;height:76px;border-radius:var(--r-sm);
+  object-fit:cover;background:var(--panel-2);border:1px solid var(--line-2);
+}
+.foto-vacia{
+  display:flex;align-items:center;justify-content:center;
+  border-style:dashed;font-size:12px;color:var(--txt-3);
+}
+/* el selector de archivo nativo no acepta los estilos de .inp */
+.foto-campo input[type=file]{padding:9px 11px;font-size:13.5px;cursor:pointer}
+.foto-campo input[type=file]::file-selector-button{
+  margin-right:10px;padding:5px 11px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--line-2);background:var(--panel-3);color:var(--txt);font:inherit;font-size:13px;
+}
 
 /* fila con control a la izquierda y texto al lado */
 .half{
@@ -887,6 +940,81 @@ select.inp optgroup{
 .callout{border:1px solid var(--amber-line);background:var(--amber-dim);border-radius:var(--r);padding:18px}
 .callout-green{border-color:var(--green-line);background:var(--green-dim)}
 .callout-red{border-color:var(--red-line);background:var(--red-dim)}
+
+/* ============================================================
+   AYUDA
+   ============================================================
+   El panel que abre el «?» de la barra superior. Reusa .overlay y .modal:
+   es un diálogo más, no una pantalla nueva. Lo único propio es el acordeón,
+   que es un <details> nativo para que funcione sin JS y con el teclado. */
+
+.ayuda{max-width:640px}
+
+/* El buscador acompaña el scroll: con 25 temas, quien filtró y bajó no tiene
+   por qué volver arriba para cambiar la palabra.
+   Los márgenes negativos son los de .modal-bd: la franja pegajosa tapa todo el
+   ancho, si no la lista se ve pasar por el costado del campo. */
+.ayuda-buscar{
+  position:sticky;top:-20px;z-index:2;
+  margin:-20px -22px 16px;padding:20px 22px 12px;
+  background:var(--panel);
+}
+
+.ayuda-grupo + .ayuda-grupo{margin-top:20px}
+.ayuda-grupo[hidden]{display:none}
+
+.ayuda-tema{
+  border:1px solid var(--line);border-radius:12px;
+  background:var(--panel-2);
+  margin-top:8px;overflow:hidden;
+}
+.ayuda-tema[hidden]{display:none}
+.ayuda-tema[open]{border-color:var(--line-2);background:var(--panel-3)}
+
+.ayuda-tema summary{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  padding:12px 14px;cursor:pointer;
+  list-style:none;                       /* el triángulo de Firefox */
+}
+.ayuda-tema summary::-webkit-details-marker{display:none}
+.ayuda-tema summary:hover{background:var(--panel-3)}
+.ayuda-tema summary .tt{font-weight:500;flex:1;min-width:0}
+.ayuda-tema summary .donde{
+  font-size:12.5px;color:var(--txt-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+.ayuda-tema[open] summary{border-bottom:1px solid var(--line)}
+.ayuda-tema[open] summary .tt{color:var(--green)}
+
+/* La flecha reemplaza al marcador nativo y gira al abrir. */
+.ayuda-tema summary::after{
+  content:'';flex:none;width:8px;height:8px;
+  border-right:2px solid var(--txt-3);border-bottom:2px solid var(--txt-3);
+  transform:rotate(45deg);margin-left:2px;transition:transform .15s;
+}
+.ayuda-tema[open] summary::after{transform:rotate(-135deg)}
+
+/* `list-style` explícito: el reset de Tailwind se lo saca a todos los <ol>,
+   y sin los números un paso a paso deja de leerse como pasos. */
+.ayuda-pasos{
+  margin:0;padding:12px 16px 4px 36px;
+  list-style:decimal;
+  font-size:14px;color:var(--txt-2);
+}
+.ayuda-pasos li{margin-bottom:7px}
+.ayuda-pasos li::marker{color:var(--txt-3);font-weight:600}
+
+.ayuda-nota{
+  margin:6px 14px 0;padding:10px 12px;
+  border-left:2px solid var(--amber-line);background:var(--amber-dim);
+  border-radius:0 8px 8px 0;
+  font-size:13px;color:var(--txt-2);
+}
+
+.ayuda-ir{margin:12px 14px 14px}
+
+.ayuda-nada{padding:24px 4px;font-size:14px}
+.ayuda-nada[hidden]{display:none}
 
 /* volver a la galería */
 .gohome{

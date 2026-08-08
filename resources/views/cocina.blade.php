@@ -39,6 +39,7 @@
                 </span>
             @endif
         </div>
+        <x-ayuda />
         <x-tema />
         <span class="money m-md">{{ now()->format('H:i') }}</span>
 
@@ -148,6 +149,9 @@
         @endif
     </div>
 </div>
+
+{{-- Esta vista no usa layouts.app, así que el panel se incluye a mano. --}}
+@include('partials.ayuda')
 
 </body>
 </html>

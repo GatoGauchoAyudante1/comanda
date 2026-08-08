@@ -52,6 +52,7 @@
                 </div>
             @endif
 
+            <x-ayuda />
             <x-tema />
         </header>
 
@@ -73,6 +74,10 @@
 
     </div>
 </div>
+
+{{-- Fuera de `.main`: es un diálogo fijo y no tiene que quedar dentro del
+     x-data que declara cada pantalla. Ver partials/ayuda.blade.php. --}}
+@include('partials.ayuda')
 
 @livewireScripts
 

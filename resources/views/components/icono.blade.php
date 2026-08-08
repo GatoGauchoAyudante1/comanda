@@ -19,12 +19,17 @@
         'search'   => '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
         'phone'    => '<path d="M5 3h4l2 5-2.5 1.5a12 12 0 006 6L16 13l5 2v4a2 2 0 01-2 2A16 16 0 013 5a2 2 0 012-2z"/>',
         'check'    => '<path d="M5 13l4 4L19 7"/>',
+        // Ojo abierto y tachado: ver la clave que se está tipeando.
+        'ojo'      => '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+        'ojo-off'  => '<path d="M10.6 6.2A10 10 0 0112 6c6.4 0 10 6 10 6a17 17 0 01-3.4 4.1"/><path d="M6.7 6.7A16.5 16.5 0 002 12s3.6 6 10 6a9.8 9.8 0 004.4-1"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/><path d="M3 3l18 18"/>',
         // Reloj: historial.
         'historial' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         // Olla con vapor: distingue Cocina de Pedidos en la barra lateral.
         'cocina'   => '<path d="M4 11h16v3a6 6 0 01-6 6h-4a6 6 0 01-6-6z"/><path d="M9 7c0-1 1-1.5 1-2.5S9 3 9 3"/><path d="M14 7c0-1 1-1.5 1-2.5S14 3 14 3"/>',
         // Balanza: proporciones. No repite el documento de Carta ni la caja de Stock.
         'recetas'  => '<path d="M12 4v17"/><path d="M8 21h8"/><path d="M5 7h14"/><path d="M5 7l-3 6a3 3 0 006 0z"/><path d="M19 7l3 6a3 3 0 01-6 0z"/>',
+        // Signo de pregunta: el botón de ayuda de la barra superior.
+        'ayuda'    => '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 114 2.3c-.7.5-1.1 1-1.1 1.8v.3"/><path d="M12 17.2h.01"/>',
         'config'   => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.1a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/>',
     ];
 @endphp

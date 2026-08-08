@@ -95,22 +95,36 @@
                                     'price'           => $p->price / 100,
                                     'goes_to_kitchen' => (bool) $p->goes_to_kitchen,
                                     'tracks_stock'    => (bool) $p->tracks_stock,
+                                    'foto'            => $p->foto(),
                                 ], JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
                             @endphp
                             <tr @class(['off' => ! $p->active])>
                                 <td class="lead">
-                                    @if ($esDueno)
-                                        <button type="button" class="link-editar" @click="editar({{ $json }})"
-                                                title="Editar «{{ $p->name }}»">
-                                            {{ $p->name }}
-                                        </button>
-                                    @else
-                                        {{-- Sin permiso de dueño el nombre no se toca: sólo el precio. --}}
-                                        <span class="fw5">{{ $p->name }}</span>
-                                    @endif
-                                    @if ($p->variants->isNotEmpty())
-                                        <div class="fs12 t-mute mt4">{{ $p->variants->pluck('name')->join(' · ') }}</div>
-                                    @endif
+                                    <div class="flex g10">
+                                        {{-- La miniatura es lo único que dice de un vistazo a qué
+                                             producto le falta foto para la carta pública. --}}
+                                        @if ($p->foto())
+                                            <img class="miniatura" src="{{ $p->foto() }}" alt=""
+                                                 loading="lazy" width="34" height="34">
+                                        @else
+                                            <span class="miniatura miniatura-vacia" aria-hidden="true"></span>
+                                        @endif
+
+                                        <div class="grow">
+                                            @if ($esDueno)
+                                                <button type="button" class="link-editar" @click="editar({{ $json }})"
+                                                        title="Editar «{{ $p->name }}»">
+                                                    {{ $p->name }}
+                                                </button>
+                                            @else
+                                                {{-- Sin permiso de dueño el nombre no se toca: sólo el precio. --}}
+                                                <span class="fw5">{{ $p->name }}</span>
+                                            @endif
+                                            @if ($p->variants->isNotEmpty())
+                                                <div class="fs12 t-mute mt4">{{ $p->variants->pluck('name')->join(' · ') }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </td>
 
                                 {{-- El precio se edita acá mismo: se escribe y se sale del campo
@@ -210,7 +224,7 @@
          DIÁLOGO: PRODUCTO
          ============================================================ --}}
     <div class="overlay" x-show="producto" x-cloak @click.self="producto = null" @keydown.escape.window="producto = null">
-        <form class="modal" method="POST"
+        <form class="modal" method="POST" enctype="multipart/form-data"
               :action="producto?.id
                   ? '{{ route('carta.producto.actualizar', ['producto' => '__ID__']) }}'.replace('__ID__', producto.id)
                   : '{{ route('carta.producto') }}'">
@@ -230,6 +244,40 @@
                         <label for="p-name">Nombre</label>
                         <input id="p-name" class="inp" name="name" x-model="producto.name" required maxlength="120">
                     </div>
+                </div>
+
+                {{-- La foto sólo se usa en la carta pública. Adentro del sistema
+                     nadie elige un producto mirando la foto, elige por el nombre. --}}
+                <div class="modal-sec">
+                    <div class="opt-lbl">Foto</div>
+
+                    <div class="foto-campo">
+                        {{-- `producto?.` y no `producto.`: el diálogo existe en el DOM
+                             desde que carga la página, con producto todavía en null. --}}
+                        <template x-if="producto?.foto">
+                            <img class="foto-previa" :src="producto.foto" alt="">
+                        </template>
+                        <template x-if="! producto?.foto">
+                            <span class="foto-previa foto-vacia">sin foto</span>
+                        </template>
+
+                        <div class="grow">
+                            <input class="inp" type="file" name="foto" accept="image/jpeg,image/png,image/webp"
+                                   x-ref="foto" @change="elegirFoto($event)">
+                            <div class="fs13 t-mute mt4">
+                                Aparece en la carta pública. Se achica sola, hasta 6 MB.
+                            </div>
+                        </div>
+
+                        <button class="btn btn-sm" type="button" x-show="producto?.foto"
+                                @click="quitarFoto()">Quitar</button>
+                    </div>
+
+                    {{-- Sólo se manda si el dueño realmente tocó «Quitar»: si el
+                         campo fuera fijo, cada guardado borraría la foto. --}}
+                    <template x-if="producto?.quitar_foto">
+                        <input type="hidden" name="quitar_foto" value="1">
+                    </template>
                 </div>
 
                 <div class="modal-sec grid2">
@@ -401,10 +449,29 @@ function carta() {
                 category_id: {{ $actual?->id ?? $categorias->first()?->id ?? 'null' }},
                 goes_to_kitchen: {{ $actual?->goes_to_kitchen ? 'true' : 'false' }},
                 tracks_stock: true,
+                foto: null, quitar_foto: false,
             };
         },
 
-        editar(p) { this.producto = { ...p }; },
+        editar(p) { this.producto = { ...p, quitar_foto: false }; },
+
+        // Vista previa local: se ve la foto elegida sin subir nada todavía.
+        elegirFoto(e) {
+            const archivo = e.target.files[0];
+
+            if (! archivo) return;
+
+            this.producto.foto = URL.createObjectURL(archivo);
+            this.producto.quitar_foto = false;
+        },
+
+        quitarFoto() {
+            this.$refs.foto.value = '';
+            this.producto.foto = null;
+            // Si el producto todavía no tiene foto guardada, no hay nada que
+            // borrar en el servidor: sólo se limpia el campo.
+            this.producto.quitar_foto = !! this.producto.id;
+        },
 
         // Misma cuenta que App\Actions\AjustarPrecios::calcular()
         simular(centavos) {

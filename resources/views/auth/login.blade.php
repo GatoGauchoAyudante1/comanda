@@ -58,8 +58,16 @@
 
             <div class="field mb16">
                 <label for="password">Clave</label>
-                <input id="password" class="inp" type="password" name="password"
-                       required autocomplete="current-password" placeholder="••••••••">
+                <div class="inp-ojo">
+                    <input id="password" class="inp" type="password" name="password"
+                           required autocomplete="current-password" placeholder="••••••••">
+                    <button type="button" class="ojo" data-ver-clave="password"
+                            aria-controls="password" aria-pressed="false"
+                            aria-label="Mostrar la clave" title="Mostrar la clave">
+                        <x-icono nombre="ojo" class="ojo-ver" />
+                        <x-icono nombre="ojo-off" class="ojo-tapar" />
+                    </button>
+                </div>
             </div>
 
             <label class="flex g10 fs14 t-dim" style="cursor:pointer">

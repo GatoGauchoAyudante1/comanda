@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
@@ -23,6 +24,20 @@ class Product extends Model
     public function category(): BelongsTo { return $this->belongsTo(Category::class); }
     public function variants(): HasMany   { return $this->hasMany(ProductVariant::class)->orderBy('sort_order'); }
     public function recipe(): HasMany     { return $this->hasMany(RecipeItem::class); }
+
+    /**
+     * URL de la foto, o null si no tiene.
+     *
+     * En base se guarda la ruta relativa; la URL se arma acá para que un
+     * cambio de dominio o de disco no obligue a tocar filas. Ver
+     * App\Actions\GuardarFotoProducto.
+     */
+    public function foto(): ?string
+    {
+        return $this->image_path
+            ? Storage::disk('public')->url($this->image_path)
+            : null;
+    }
 
     /** Costo de insumos por unidad, en centavos. */
     public function costo(): int

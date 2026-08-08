@@ -44,6 +44,23 @@ class Negocio
         return self::settings()['receipt.point_of_sale'] ?? config('negocio.comprobante.punto_venta');
     }
 
+    /**
+     * ¿La carta se publica en internet, sin contraseña?
+     *
+     * Arranca apagada a propósito: publicar precios es una decisión del dueño,
+     * no algo que pase por defecto al instalar. Ver App\Http\Controllers\CartaPublicaController.
+     */
+    public static function cartaPublica(): bool
+    {
+        return filter_var(self::settings()['menu.public'] ?? false, FILTER_VALIDATE_BOOL);
+    }
+
+    /** Bajada opcional de la carta pública: horarios, teléfono, lo que quiera. */
+    public static function cartaMensaje(): string
+    {
+        return trim((string) (self::settings()['menu.note'] ?? ''));
+    }
+
     /** ¿Está activo un módulo? salon | pool | delivery | stock */
     public static function modulo(string $nombre): bool
     {

@@ -22,6 +22,7 @@
             <a class="cat" href="#negocio">Datos del negocio</a>
             <a class="cat" href="#modulos">Módulos</a>
             <a class="cat" href="#cocina">Cocina</a>
+            <a class="cat" href="#carta">Carta</a>
             @if (Negocio::modulo('salon') || Negocio::modulo('pool'))
                 <a class="cat" href="#mesas">Mesas</a>
             @endif
@@ -178,6 +179,109 @@
                         Los que no pueden marcar igual la ven, para saber cómo viene el turno.
                     </div>
                 </div>
+            </div>
+
+            {{-- ============ carta ============ --}}
+            <div class="card mt16" id="carta">
+                <div class="sec">
+                    Carta
+                    <span class="meta">La carta que ven los clientes</span>
+                </div>
+
+                <p class="t-dim fs14 mb16">
+                    Publicar la carta le da a cualquiera un link para verla desde el celular,
+                    <b class="t-white">sin usuario ni contraseña</b>. Muestra sólo los productos
+                    activos con su precio y su foto: nunca costos, márgenes, recetas ni stock.
+                    Los cambios de precio se ven al instante, no hay nada que volver a publicar.
+                </p>
+
+                <div class="row">
+                    <div class="grow">
+                        <div class="nm">Carta pública</div>
+                        <div class="sb">
+                            @if ($cartaPublica)
+                                <span class="t-green">publicada</span> · cualquiera con el link la ve
+                            @else
+                                <span class="t-mute">apagada</span> · el link devuelve «no existe»
+                            @endif
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ route('configuracion.carta.publicar') }}">
+                        @csrf
+                        <button type="submit" class="sw {{ $cartaPublica ? 'is-on' : '' }}"
+                                style="border:none;cursor:pointer"></button>
+                    </form>
+                </div>
+
+                @if ($cartaPublica)
+
+                    <div class="flex g18 wrap mt16" style="align-items:flex-start">
+
+                        <div class="grow" style="min-width:260px">
+                            <div class="opt-lbl">Link para los clientes</div>
+
+                            <div class="flex g8 wrap mt4">
+                                <a class="chip chip-green" href="{{ $cartaUrl }}" target="_blank" rel="noopener">
+                                    {{ $cartaUrl }}
+                                </a>
+                                {{-- Se comparte por WhatsApp mucho más de lo que se escanea. --}}
+                                <button class="btn btn-sm" type="button"
+                                        @click="navigator.clipboard.writeText('{{ $cartaUrl }}');
+                                                $el.textContent = 'Copiado'">
+                                    Copiar
+                                </button>
+                            </div>
+
+                            <form class="mt16" method="POST" action="{{ route('configuracion.carta') }}">
+                                @csrf
+                                <div class="field">
+                                    <label for="carta-mensaje">Mensaje bajo el título</label>
+                                    <input id="carta-mensaje" class="inp" name="mensaje" maxlength="160"
+                                           value="{{ $cartaMensaje }}"
+                                           placeholder="Todos los días de 19 a 1 · Pedidos al 11 2345-6789">
+                                    <span class="fs13 t-mute">Opcional. Horarios, teléfono o lo que quieras que lea el cliente.</span>
+                                </div>
+                                <button class="btn btn-primary mt12" type="submit">Guardar</button>
+                            </form>
+                        </div>
+
+                        {{-- El QR chico es para reconocerlo de un vistazo; el que se
+                             pega en la mesa sale de «Imprimir», en su propia hoja. --}}
+                        <div style="text-align:center">
+                            <div class="opt-lbl">Código QR</div>
+                            <div style="background:#fff;padding:10px;border-radius:var(--r-sm);line-height:0;display:inline-block">
+                                {!! $cartaQr !!}
+                            </div>
+                            <a class="btn btn-block btn-sm mt12" href="{{ route('configuracion.carta.qr') }}" target="_blank">
+                                Imprimir para la mesa
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="notice notice-amber mt16">
+                        <span class="dot dot-amber"></span>
+                        <div>
+                            <div class="tt">Los precios quedan a la vista de todos</div>
+                            <div class="ds">
+                                Incluida la competencia. Un producto que no querés mostrar,
+                                desactivalo en la <a class="t-green" href="{{ route('carta') }}">carta</a>:
+                                sale del link público y del sistema a la vez.
+                            </div>
+                        </div>
+                    </div>
+
+                @else
+
+                    <div class="notice mt16">
+                        <span class="dot dot-mute"></span>
+                        <div class="ds">
+                            Al prenderla queda publicada en <b class="t-white">{{ $cartaUrl }}</b>
+                            y aparece el código QR para imprimir y pegar en las mesas.
+                        </div>
+                    </div>
+
+                @endif
             </div>
 
             {{-- ============ mesas ============ --}}

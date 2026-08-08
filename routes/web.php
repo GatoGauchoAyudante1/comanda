@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\CartaController;
+use App\Http\Controllers\CartaPublicaController;
 use App\Http\Controllers\CobroController;
 use App\Http\Controllers\CocinaController;
 use App\Http\Controllers\ConfiguracionController;
@@ -34,6 +35,15 @@ use Illuminate\Support\Facades\Route;
 // PWA: accesibles sin sesión, el navegador las pide antes del login.
 Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
+
+/*
+| Carta pública: la ve el cliente del local escaneando el QR de la mesa.
+|
+| Es la única pantalla sin sesión que muestra datos del negocio, y por eso
+| está acá arriba y sola: se ve de un vistazo qué queda expuesto. Se prende
+| desde Ajustes → Carta; apagada devuelve 404.
+*/
+Route::get('/menu', CartaPublicaController::class)->name('carta.publica');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [SesionController::class, 'mostrar'])->name('login');
@@ -165,6 +175,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/ajustes/modulo/restablecer', [ConfiguracionController::class, 'restablecerModulo'])->name('configuracion.modulo.restablecer');
 
         Route::post('/ajustes/cocina', [ConfiguracionController::class, 'guardarCocina'])->name('configuracion.cocina');
+
+        Route::post('/ajustes/carta', [ConfiguracionController::class, 'guardarCarta'])->name('configuracion.carta');
+        Route::post('/ajustes/carta/publicar', [ConfiguracionController::class, 'alternarCartaPublica'])->name('configuracion.carta.publicar');
+        Route::get('/ajustes/carta/qr', [ConfiguracionController::class, 'qr'])->name('configuracion.carta.qr');
 
         Route::post('/ajustes/mesas', [ConfiguracionController::class, 'crearMesas'])->name('configuracion.mesas');
         Route::post('/ajustes/mesas/{mesa}/alternar', [ConfiguracionController::class, 'alternarMesa'])->name('configuracion.mesa.alternar');
