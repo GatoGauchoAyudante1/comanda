@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\MarcarReventa;
 use App\Models\Ingredient;
 use App\Models\Product;
 use App\Models\RecipeItem;
@@ -39,15 +40,35 @@ class RecetaController extends Controller
 
         [$conReceta, $sinReceta] = $productos->partition(fn (Product $p) => $p->recipe->isNotEmpty());
 
+        // La reventa 1:1 tiene línea, pero no es una receta: no hay nada que
+        // componer. Mezclarla en la tabla la llenaba de bebidas — 17 de 33
+        // filas — y tapaba justamente lo que esta pantalla existe para mostrar.
+        [$reventas, $conReceta] = $conReceta->partition(fn (Product $p) => $p->esReventa());
+
         // Ordenados por margen: lo primero que el dueño quiere ver es lo que menos deja.
         $conReceta = $conReceta->sortBy(fn (Product $p) => $p->margen() ?? INF)->values();
-        $margenes  = $conReceta->map->margen()->filter(fn (?float $m) => $m !== null);
+
+        // El promedio sale sólo de lo que se prepara. Las reventas arrancan en
+        // costo 0 y darían 100% cada una, subiendo un promedio que sirve para
+        // decidir precios de cocina.
+        $margenes = $conReceta->map->margen()->filter(fn (?float $m) => $m !== null);
+
+        // Los que no controlan stock no necesitan receta: no son un pendiente.
+        $pendientes = $sinReceta->where('tracks_stock', true)->values();
+
+        // El pendiente se lee distinto según de dónde salga el producto: a una
+        // pizza le falta la receta, a una Corona le falta decir de qué insumo
+        // sale. El dato es el mismo (docs/05-modulo-stock.md · reventa 1:1),
+        // pero «cargá la receta de la Corona» no le dice nada al dueño.
+        [$pendCocina, $pendBarra] = $pendientes->partition(fn (Product $p) => $p->goes_to_kitchen);
 
         return view('stock.recetas', [
             'vista'      => $vista,
             'conReceta'  => $conReceta,
-            // Los que no controlan stock no necesitan receta: no son un pendiente.
-            'pendientes' => $sinReceta->where('tracks_stock', true)->values(),
+            'pendientes' => $pendientes,
+            'pendCocina' => $pendCocina->values(),
+            'pendBarra'  => $pendBarra->values(),
+            'reventas'   => $reventas->values(),
             'sueltos'    => $sinReceta->where('tracks_stock', false)->values(),
             'margenProm' => $margenes->isNotEmpty() ? round($margenes->avg(), 1) : null,
 
@@ -74,6 +95,31 @@ class RecetaController extends Controller
                 ->orderBy('name')
                 ->get(),
         ]);
+    }
+
+    /**
+     * Salida manual de la reventa 1:1, para lo que el default no acierta.
+     *
+     * El caso normal ya viene resuelto de fábrica: CargarDatos marca como
+     * reventa todo lo que no pasa por la cocina. Esto queda para el producto
+     * que se dio de alta a mano después.
+     */
+    public function reventa(Product $producto, MarcarReventa $marcar): RedirectResponse
+    {
+        $insumo = $marcar($producto);
+
+        if ($insumo === null) {
+            return back()->with('error', "«{$producto->name}» ya tiene receta cargada.");
+        }
+
+        // Vuelve a la lista, no al detalle: las bebidas se marcan de a tanda y
+        // sacar al dueño de la lista en cada click le duplica el trabajo.
+        return back()->with(
+            'ok',
+            $insumo->wasRecentlyCreated
+                ? "«{$producto->name}» queda como reventa. Se creó el insumo con el mismo nombre: cargale el stock y el costo desde Stock."
+                : "«{$producto->name}» queda como reventa del insumo «{$insumo->name}».",
+        );
     }
 
     public function guardarLinea(Request $request, Product $producto): RedirectResponse

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\MarcarReventa;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Table;
@@ -38,9 +39,14 @@ class CargarDatos extends Command
     protected $description = 'Carga carta, mesas y mozos de un cliente desde JSON';
 
     /**
-     * Las bebidas son la excepción de este negocio: son lo único que descuenta
-     * stock (se revenden 1:1) y lo único que no pasa por la cocina. El resto
-     * se cocina y no lleva receta.
+     * Las bebidas no pasan por la cocina, y eso alcanza para deducir su receta:
+     * lo que no se prepara se vende tal cual se compra. Por eso se les arma la
+     * reventa 1:1 sola y el dueño no tiene que declarar nada.
+     *
+     * La excepción son los tragos, que salen de la barra pero sí se preparan.
+     * Ésos quedan con la línea automática puesta y se corrigen desde Recetas
+     * con «Lleva varios» — es el único caso que pide una mano humana, porque
+     * los 70 ml de fernet no los adivina nadie.
      */
     private function esBebida(string $categoria): bool
     {
@@ -190,13 +196,13 @@ class CargarDatos extends Command
                 $cat['nombre'] ?? '?',
                 count($cat['productos'] ?? []),
                 $bebida ? 'no' : 'sí',
-                $bebida ? 'sí' : 'no',
+                $bebida ? 'automática (reventa 1:1)' : 'la carga el dueño',
             ];
         }
 
         $this->newLine();
         $this->line("Carta de «" . ($carta['negocio'] ?? 'sin nombre') . '»:');
-        $this->table(['Categoría', 'Productos', 'A cocina', 'Controla stock'], $filas);
+        $this->table(['Categoría', 'Productos', 'A cocina', 'Receta'], $filas);
 
         if ($mesas !== null) {
             $tipo = $mesas['tipo'] ?? 'salon';
@@ -252,7 +258,9 @@ class CargarDatos extends Command
     {
         $categorias = 0;
         $productos  = 0;
+        $reventas   = 0;
 
+        $marcar    = app(MarcarReventa::class);
         $repetidos = $this->nombresRepetidos($carta['categorias']);
 
         foreach (array_values($carta['categorias']) as $i => $cat) {
@@ -271,7 +279,7 @@ class CargarDatos extends Command
             foreach (array_values($cat['productos'] ?? []) as $j => $p) {
                 $conPrecio = $this->tienePrecio($p);
 
-                Product::updateOrCreate(
+                $producto = Product::updateOrCreate(
                     // Por nombre Y categoría: dos «Napolitana» de categorías
                     // distintas son dos productos, no uno que se pisa.
                     ['name' => $this->nombreFinal($p, $cat['nombre'], $repetidos), 'category_id' => $categoria->id],
@@ -279,17 +287,34 @@ class CargarDatos extends Command
                         // El JSON viene en pesos; la base guarda centavos (R-31).
                         'price'           => $conPrecio ? Plata::aCentavos($p['precio']) : 0,
                         'goes_to_kitchen' => ! $bebida,
-                        'tracks_stock'    => $bebida,
+                        // Todo descuenta salvo que el dueño lo apague desde la
+                        // Carta (el café, el tiempo de pool). Antes esto venía
+                        // apagado en la comida, y una receta cargada sobre el
+                        // flag en cero no mueve un gramo: DescontarStock corta
+                        // antes de mirarla, y ninguna pantalla lo avisa.
+                        'tracks_stock'    => true,
                         'sort_order'      => $j + 1,
                         // Sin precio no se puede vender: entra apagado.
                         'active'          => $conPrecio,
                     ],
                 );
                 $productos++;
+
+                // Lo que no pasa por la cocina se vende tal cual se compra, así
+                // que su receta la puede escribir el sistema. El dueño abre la
+                // app con las bebidas ya descontando; sólo le quedan los tragos,
+                // que son los únicos que un humano tiene que dictar.
+                if (! $producto->goes_to_kitchen && $marcar($producto) !== null) {
+                    $reventas++;
+                }
             }
         }
 
-        return ['categorías' => $categorias, 'productos' => $productos];
+        return array_filter([
+            'categorías' => $categorias,
+            'productos'  => $productos,
+            'reventas'   => $reventas,
+        ]);
     }
 
     /** @return array<string, int> */

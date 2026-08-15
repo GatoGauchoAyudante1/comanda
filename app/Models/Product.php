@@ -39,6 +39,28 @@ class Product extends Model
             : null;
     }
 
+    /**
+     * ¿Se vende tal cual se compra?
+     *
+     * Una 7UP tiene línea de receta porque el stock la necesita, pero no es una
+     * receta: no hay nada que componer ni que editar. La pantalla de Recetas la
+     * saca del medio para hablar sólo de lo que se prepara.
+     *
+     * Las tres condiciones juntas, porque cada una sola se equivoca:
+     *   - no va a cocina  → el trago sale de la barra pero se prepara, y tiene
+     *                       varias líneas: no entra acá
+     *   - una sola línea  → la pizza tiene 3 o más
+     *   - qty = 1         → «Sola» es una milanesa de cocina con una línea; el
+     *                       flag de cocina ya la deja afuera, pero si mañana
+     *                       alguien la mueve de área, esto la sigue salvando
+     */
+    public function esReventa(): bool
+    {
+        return ! $this->goes_to_kitchen
+            && $this->recipe->count() === 1
+            && (float) $this->recipe->first()->qty === 1.0;
+    }
+
     /** Costo de insumos por unidad, en centavos. */
     public function costo(): int
     {

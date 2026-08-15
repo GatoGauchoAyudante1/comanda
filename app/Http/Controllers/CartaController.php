@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\AjustarPrecios;
 use App\Actions\GuardarFotoProducto;
+use App\Actions\MarcarReventa;
 use App\Models\Category;
 use App\Models\Product;
 use App\Support\Bitacora;
@@ -53,7 +54,7 @@ class CartaController extends Controller
      * opcional (la misma ruta da de alta y edita) y PHP no admite un parámetro
      * opcional delante de uno obligatorio.
      */
-    public function guardarProducto(Request $request, GuardarFotoProducto $fotos, ?Product $producto = null): RedirectResponse
+    public function guardarProducto(Request $request, GuardarFotoProducto $fotos, MarcarReventa $marcar, ?Product $producto = null): RedirectResponse
     {
         $datos = $request->validate([
             'name'            => ['required', 'string', 'max:120', Rule::unique('products', 'name')->ignore($producto)],
@@ -82,6 +83,18 @@ class CartaController extends Controller
         } else {
             $producto = Product::create([...$valores, 'active' => true]);
             $mensaje  = "«{$producto->name}» agregado a la carta.";
+
+            // Un alta que no va a cocina se vende tal cual se compra, así que
+            // su receta la escribe el sistema — igual que en negocio:cargar. Si
+            // no, el producto nace pendiente en /stock/recetas pidiéndole al
+            // dueño que declare algo que ya se sabe.
+            //
+            // Sólo en el alta: si después borra la línea para cargar la receta
+            // de verdad (un whisky que se vende por medida, no por botella),
+            // editar el precio no se la tiene que volver a poner.
+            if (! $producto->goes_to_kitchen && $producto->tracks_stock && $marcar($producto)) {
+                $mensaje .= ' Se vende tal cual, así que ya descuenta stock de su propio insumo.';
+            }
         }
 
         // Después de guardar: el nombre del archivo lleva el id del producto,

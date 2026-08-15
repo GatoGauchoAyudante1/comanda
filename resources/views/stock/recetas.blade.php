@@ -150,16 +150,16 @@
 
 @else
 
-    {{-- ============ pendientes ============
+    {{-- ============ pendientes de cocina ============
          Va arriba y con acceso directo: es el trabajo que falta hacer. --}}
-    @if ($pendientes->isNotEmpty())
+    @if ($pendCocina->isNotEmpty())
         <div class="card mb16">
             <div class="sec">
                 Falta cargar la receta
                 <span class="meta">Se venden, pero no descuentan insumos ni calculan margen</span>
             </div>
 
-            @foreach ($pendientes as $p)
+            @foreach ($pendCocina as $p)
                 <div class="row">
                     <div class="grow">
                         <div class="nm">{{ $p->name }}</div>
@@ -168,6 +168,48 @@
                     <a class="btn btn-sm btn-primary" href="{{ route('receta', $p) }}">Cargar receta</a>
                 </div>
             @endforeach
+        </div>
+    @endif
+
+    {{-- ============ pendientes de barra ============
+         Misma tabla y mismo pendiente, otra forma de decirlo: una Corona no
+         «lleva receta», sale de un insumo. Igual se ofrecen las dos salidas,
+         porque de la barra también salen los tragos, que sí llevan varios. --}}
+    @if ($pendBarra->isNotEmpty())
+        <div class="card mb16">
+            <div class="sec">
+                Falta asociar el insumo
+                <span class="meta">Se revenden tal cual: una unidad vendida descuenta una del insumo</span>
+            </div>
+
+            @foreach ($pendBarra as $p)
+                <div class="row">
+                    <div class="grow">
+                        <div class="nm">{{ $p->name }}</div>
+                        <div class="sb">{{ $p->category->name }} · @plata($p->price)</div>
+                    </div>
+                    <div class="flex g10">
+                        {{-- El trago lleva varios insumos: no es una reventa. --}}
+                        <a class="btn btn-sm" href="{{ route('receta', $p) }}">Lleva varios</a>
+                        <form method="POST" action="{{ route('receta.reventa', $p) }}">
+                            @csrf
+                            <button class="btn btn-sm btn-primary">Es reventa</button>
+                        </form>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        <div class="notice mb16">
+            <span class="dot dot-mute"></span>
+            <div>
+                <div class="tt">«Es reventa» crea el insumo y lo ata en un paso</div>
+                <div class="ds">
+                    Se crea un insumo con el mismo nombre del producto, medido en unidades,
+                    y se guarda que cada venta descuenta 1. Falta sólo cargarle el stock y
+                    lo que te cuesta, desde Stock.
+                </div>
+            </div>
         </div>
     @endif
 
@@ -234,6 +276,28 @@
             </table>
         </div>
     </div>
+
+    {{-- ============ reventa 1:1 ============
+         Tienen línea y descuentan stock, pero no hay receta que editar: el
+         producto es el insumo. Van acá abajo y en chico para que la tabla de
+         arriba hable sólo de lo que se prepara. --}}
+    @if ($reventas->isNotEmpty())
+        <div class="card mt16">
+            <div class="sec">
+                Se venden tal cual
+                <span class="meta">{{ $reventas->count() }} productos · descuentan 1 unidad de su insumo</span>
+            </div>
+            <p class="fs13 t-mute" style="padding:12px 0">
+                Una gaseosa no lleva receta: es ella misma. Ya descuentan stock al venderse.
+                Lo que les falta es el costo, y eso se carga en
+                <a href="{{ route('stock') }}" style="text-decoration:underline">Stock</a>.
+                Entrá a cualquiera si en realidad lleva varios insumos.
+            </p>
+            @foreach ($reventas as $p)
+                <a class="cat" href="{{ route('receta', $p) }}">{{ $p->name }}</a>
+            @endforeach
+        </div>
+    @endif
 
     {{-- ============ los que no llevan receta ============ --}}
     @if ($sueltos->isNotEmpty())

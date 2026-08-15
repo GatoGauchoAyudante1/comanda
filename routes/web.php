@@ -155,6 +155,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/stock/recetas', [RecetaController::class, 'index'])->name('recetas');
         Route::get('/stock/recetas/{producto}', [RecetaController::class, 'mostrar'])->name('receta');
         Route::post('/stock/recetas/{producto}', [RecetaController::class, 'guardarLinea'])->name('receta.linea');
+        Route::post('/stock/recetas/{producto}/reventa', [RecetaController::class, 'reventa'])->name('receta.reventa');
         Route::delete('/stock/recetas/{producto}/{linea}', [RecetaController::class, 'borrarLinea'])->name('receta.linea.borrar');
     });
 
