@@ -63,9 +63,14 @@ return [
     | will be used by the PHP date and date-time functions. The timezone
     | is set to "UTC" by default as it is suitable for most use cases.
     |
+    | Acá NO sirve UTC: el local cierra caja a las 3 de la mañana y el turno
+    | tiene que caer en el día que el dueño llama "ayer", no en el siguiente.
+    | Todas las horas de pantalla salen de now() en el servidor — el reloj del
+    | panel, el arqueo, la hora de cada comanda.
+    |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------
