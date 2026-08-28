@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AvanzarPedido;
+use App\Actions\CambiarMetodoPago;
 use App\Actions\RendirCaja;
 use App\Models\CashSession;
 use App\Models\DriverSettlement;
@@ -61,6 +62,31 @@ class RepartidorController extends Controller
         }
 
         return back()->with('ok', "Pedido #{$orden->number} entregado.");
+    }
+
+    /** El cadete confirma o corrige cómo paga el cliente, hasta que lo entrega. */
+    public function metodoPago(Request $request, Order $orden, CambiarMetodoPago $cambiar): RedirectResponse
+    {
+        // Sólo sus propios envíos. Ver docs/06-reglas-negocio.md · R-29.
+        abort_unless($orden->delivery?->driver_id === $request->user()->id, 403);
+
+        $datos = $request->validate([
+            'metodo_pago' => ['required', 'in:cash,qr,transfer,debit,credit'],
+            'paga_con'    => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        try {
+            $cambiar(
+                $orden,
+                $datos['metodo_pago'],
+                $request->user(),
+                isset($datos['paga_con']) ? Plata::aCentavos($datos['paga_con']) : null,
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('ok', 'Medio de pago actualizado.');
     }
 
     public function rendir(Request $request, RendirCaja $rendirCaja): RedirectResponse

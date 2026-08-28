@@ -5,7 +5,7 @@
 @endphp
 
 @section('titulo', 'Pedidos')
-@section('alpine', '{ asignando: null, detalle: null }')
+@section('alpine', '{ asignando: null, detalle: null, pagando: null }')
 
 @section('topbar')
     <div>
@@ -23,7 +23,7 @@
 @section('contenido')
 {{-- Se refresca solo cada 15 s, salvo que haya un diálogo abierto (D-18). --}}
 <div x-init="setInterval(() => {
-        if (!document.hidden && !asignando && !detalle) location.reload()
+        if (!document.hidden && !asignando && !detalle && !pagando) location.reload()
      }, 15000)">
 
     <div class="kanban" style="grid-template-columns:repeat(3,1fr)">
@@ -69,7 +69,11 @@
 
                                 @if (! $esMesa)
                                     <span class="chip chip-line">
-                                        {{ $entrega?->payment_method === 'cash' ? 'Cobrar en efectivo' : 'Ya pagó' }}
+                                        {{ match ($entrega?->payment_method) {
+                                            'cash'  => 'Cobrar en efectivo',
+                                            null    => 'Pago a definir',
+                                            default => 'Ya pagó',
+                                        } }}
                                     </span>
                                 @endif
 
@@ -191,18 +195,31 @@
                                         </div>
 
                                         @if (! $esMesa)
-                                            <div class="notice mt16 {{ $entrega?->payment_method === 'cash' ? 'notice-amber' : 'notice-green' }}">
-                                                <span class="dot {{ $entrega?->payment_method === 'cash' ? 'dot-amber' : '' }}"></span>
-                                                <div>
+                                            @php
+                                                $claseNotice = match ($entrega?->payment_method) {
+                                                    'cash'  => 'notice-amber',
+                                                    null    => '',
+                                                    default => 'notice-green',
+                                                };
+                                            @endphp
+                                            <div class="notice mt16 {{ $claseNotice }}">
+                                                <span class="dot {{ $entrega?->payment_method === 'cash' ? 'dot-amber' : ($entrega?->payment_method ? '' : 'dot-mute') }}"></span>
+                                                <div class="grow">
                                                     <div class="tt">
-                                                        {{ $entrega?->payment_method === 'cash'
-                                                            ? 'Cobrar ' . \App\Support\Plata::format($pedido->total) . ' en efectivo'
-                                                            : 'Ya está pagado' }}
+                                                        {{ match ($entrega?->payment_method) {
+                                                            'cash'  => 'Cobrar ' . \App\Support\Plata::format($pedido->total) . ' en efectivo',
+                                                            null    => 'Medio de pago a definir',
+                                                            default => 'Ya está pagado',
+                                                        } }}
                                                     </div>
                                                     @if ($entrega?->vuelto() > 0)
                                                         <div class="ds">Llevar @plata($entrega->vuelto()) de vuelto.</div>
                                                     @endif
                                                 </div>
+                                                <button class="btn btn-sm" type="button"
+                                                        @click="detalle = null; pagando = {{ $pedido->id }}">
+                                                    {{ $entrega?->payment_method ? 'Cambiar' : 'Definir' }}
+                                                </button>
                                             </div>
                                         @endif
 
@@ -261,7 +278,60 @@
                                                         @endif
                                                     </div>
                                                 </div>
+                                            @elseif (! $entrega?->payment_method)
+                                                <div class="notice mt16">
+                                                    <span class="dot dot-mute"></span>
+                                                    <div>
+                                                        <div class="tt">Medio de pago a definir</div>
+                                                        <div class="ds">El repartidor lo confirma con el cliente antes de entregar.</div>
+                                                    </div>
+                                                </div>
                                             @endif
+                                        </div>
+                                    </form>
+                                </div>
+
+                                {{-- ============ cambiar método de pago ============ --}}
+                                <div class="overlay" x-show="pagando === {{ $pedido->id }}" x-cloak
+                                     @click.self="pagando = null" @keydown.escape.window="pagando = null"
+                                     x-data="{ metodo: {{ $entrega?->payment_method ? "'{$entrega->payment_method}'" : 'null' }}, pagaCon: null }">
+                                    <form class="modal" style="max-width:420px" method="POST"
+                                          action="{{ route('pedidos.metodo_pago', $pedido) }}">
+                                        @csrf
+
+                                        <div class="modal-hd">
+                                            <div class="grow">
+                                                <h2>Pedido #{{ $pedido->number }}</h2>
+                                                <div class="sub">¿Cómo paga?</div>
+                                            </div>
+                                            <button class="xbtn" type="button" @click="pagando = null">&times;</button>
+                                        </div>
+
+                                        <div class="modal-bd">
+                                            <div class="pays">
+                                                <button type="button" class="pay" :class="{ 'is-on': metodo === 'cash' }"
+                                                        @click="metodo = 'cash'"><x-icono nombre="cash" />Efectivo</button>
+                                                <button type="button" class="pay" :class="{ 'is-on': metodo === 'qr' }"
+                                                        @click="metodo = 'qr'; pagaCon = null"><x-icono nombre="qr" />QR / Transf.</button>
+                                                <button type="button" class="pay" :class="{ 'is-on': metodo === 'debit' }"
+                                                        @click="metodo = 'debit'; pagaCon = null"><x-icono nombre="card" />Tarjeta</button>
+                                            </div>
+                                            <input type="hidden" name="metodo_pago" :value="metodo ?? ''">
+
+                                            <template x-if="metodo === 'cash'">
+                                                <div class="field mt16">
+                                                    <label for="pagacon-{{ $pedido->id }}">Paga con</label>
+                                                    <input id="pagacon-{{ $pedido->id }}" class="inp" type="number" step="1" min="0"
+                                                           name="paga_con" x-model.number="pagaCon" inputmode="numeric"
+                                                           placeholder="50000">
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <div class="modal-ft">
+                                            <div class="grow"></div>
+                                            <button class="btn" type="button" @click="pagando = null">Cancelar</button>
+                                            <button class="btn btn-primary" type="submit" :disabled="! metodo">Guardar</button>
                                         </div>
                                     </form>
                                 </div>

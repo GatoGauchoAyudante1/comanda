@@ -168,13 +168,13 @@
                     <div class="sec">Cómo paga</div>
                     <div class="pays">
                         <button type="button" class="pay" style="height:82px" :class="{ 'is-on': pago === 'cash' }"
-                                @click="pago = 'cash'"><x-icono nombre="cash" />Efectivo</button>
+                                @click="pago = (pago === 'cash' ? null : 'cash')"><x-icono nombre="cash" />Efectivo</button>
                         <button type="button" class="pay" style="height:82px" :class="{ 'is-on': pago === 'qr' }"
-                                @click="pago = 'qr'"><x-icono nombre="qr" />QR / Transf.</button>
+                                @click="pago = (pago === 'qr' ? null : 'qr'); pagaCon = null"><x-icono nombre="qr" />QR / Transf.</button>
                         <button type="button" class="pay" style="height:82px" :class="{ 'is-on': pago === 'debit' }"
-                                @click="pago = 'debit'"><x-icono nombre="card" />Tarjeta</button>
+                                @click="pago = (pago === 'debit' ? null : 'debit'); pagaCon = null"><x-icono nombre="card" />Tarjeta</button>
                     </div>
-                    <input type="hidden" name="metodo_pago" :value="pago">
+                    <input type="hidden" name="metodo_pago" :value="pago ?? ''">
 
                     <template x-if="pago === 'cash'">
                         <div>
@@ -194,6 +194,14 @@
                             </div>
                         </div>
                     </template>
+
+                    <div class="notice mt12" x-show="pago === null">
+                        <span class="dot dot-mute"></span>
+                        <div>
+                            <div class="tt">Se define al entregar</div>
+                            <div class="ds">Si el cliente todavía no sabe cómo va a pagar, dejalo así: el repartidor lo confirma o lo corrige antes de cobrar.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <button class="btn btn-primary btn-lg btn-block mt16" type="submit"
@@ -272,7 +280,7 @@ function pedido() {
 
         tipo: 'delivery',
         telefono: '', nombre: '', calle: '', detalle: '', zona: '',
-        pago: 'cash', pagaCon: null,
+        pago: null, pagaCon: null,
         conocido: null,
 
         lineas: [],

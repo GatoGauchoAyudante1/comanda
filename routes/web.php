@@ -96,6 +96,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/pedidos', [PedidoController::class, 'guardar'])->name('pedidos.guardar');
         Route::post('/pedidos/{orden}/avanzar', [PedidoController::class, 'avanzar'])->name('pedidos.avanzar');
         Route::post('/pedidos/{orden}/servido', [PedidoController::class, 'servido'])->name('pedidos.servido');
+        Route::post('/pedidos/{orden}/metodo-pago', [PedidoController::class, 'metodoPago'])->name('pedidos.metodo_pago');
     });
 
     // Cocina
@@ -108,6 +109,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('rol:repartidor')->group(function () {
         Route::get('/mis-envios', [RepartidorController::class, 'index'])->name('envios');
         Route::post('/mis-envios/{orden}/entregar', [RepartidorController::class, 'entregar'])->name('envios.entregar');
+        Route::post('/mis-envios/{orden}/metodo-pago', [RepartidorController::class, 'metodoPago'])->name('envios.metodo_pago');
         Route::post('/mis-envios/rendir', [RepartidorController::class, 'rendir'])->name('envios.rendir');
     });
 

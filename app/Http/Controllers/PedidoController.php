@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AvanzarPedido;
+use App\Actions\CambiarMetodoPago;
 use App\Actions\TomarPedido;
 use App\Models\Category;
 use App\Models\Customer;
@@ -152,7 +153,7 @@ class PedidoController extends Controller
             'calle'               => ['nullable', 'string', 'max:160'],
             'detalle'             => ['nullable', 'string', 'max:120'],
             'zone_id'             => ['nullable', 'exists:zones,id'],
-            'metodo_pago'         => ['required', 'in:cash,qr,transfer,debit,credit'],
+            'metodo_pago'         => ['nullable', 'in:cash,qr,transfer,debit,credit'],
             'paga_con'            => ['nullable', 'numeric', 'min:0'],
             'notas'               => ['nullable', 'string', 'max:300'],
             'lineas'              => ['required', 'array', 'min:1'],
@@ -172,7 +173,7 @@ class PedidoController extends Controller
                 calle: $datos['calle'] ?? null,
                 detalle: $datos['detalle'] ?? null,
                 zonaId: $datos['zone_id'] ?? null,
-                metodoPago: $datos['metodo_pago'],
+                metodoPago: $datos['metodo_pago'] ?? null,
                 pagaCon: isset($datos['paga_con']) ? Plata::aCentavos($datos['paga_con']) : null,
                 notas: $datos['notas'] ?? null,
             );
@@ -206,5 +207,27 @@ class PedidoController extends Controller
         ];
 
         return back()->with('ok', trim(($textos[$datos['estado']] ?? 'Actualizado.') . ' ' . implode(' ', $avisos)));
+    }
+
+    /** Definir o corregir el medio de pago después de tomado el pedido. */
+    public function metodoPago(Request $request, Order $orden, CambiarMetodoPago $cambiar): RedirectResponse
+    {
+        $datos = $request->validate([
+            'metodo_pago' => ['required', 'in:cash,qr,transfer,debit,credit'],
+            'paga_con'    => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        try {
+            $cambiar(
+                $orden,
+                $datos['metodo_pago'],
+                $request->user(),
+                isset($datos['paga_con']) ? Plata::aCentavos($datos['paga_con']) : null,
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('ok', 'Medio de pago actualizado.');
     }
 }

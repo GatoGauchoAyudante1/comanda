@@ -37,7 +37,7 @@ class TomarPedido
         ?string $calle = null,
         ?string $detalle = null,
         ?int $zonaId = null,
-        string $metodoPago = 'cash',
+        ?string $metodoPago = null,
         ?int $pagaCon = null,
         ?string $notas = null,
     ): Order {
@@ -95,7 +95,11 @@ class TomarPedido
                     . " de {$cliente->name} ({$cliente->phone})"
                     . ($direccion ? " · {$direccion->completa()}" : '')
                     . ($zona ? " · {$zona->name}" : '')
-                    . ' · paga con ' . ($metodoPago === 'cash' ? 'efectivo' : $metodoPago),
+                    . ' · paga con ' . match ($metodoPago) {
+                        null    => 'a definir',
+                        'cash'  => 'efectivo',
+                        default => $metodoPago,
+                    },
                 $orden,
                 [
                     'cliente'  => $cliente->name,

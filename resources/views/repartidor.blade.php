@@ -13,7 +13,7 @@
 @endsection
 
 @section('contenido')
-<div x-data="{ rindiendo: false, entregado: {{ $aRendir / 100 }} }">
+<div x-data="{ rindiendo: false, entregado: {{ $aRendir / 100 }}, pagando: null }">
     <div class="narrow">
 
         <div class="strip3">
@@ -50,10 +50,16 @@
                         @if ($e->vuelto() > 0)
                             <span class="chip chip-line">Vuelto @plata($e->vuelto())</span>
                         @endif
-                    @else
+                    @elseif ($e->payment_method)
                         <span class="chip chip-green">Ya pagó</span>
                         <span class="chip chip-line">No cobrar nada</span>
+                    @else
+                        <span class="chip chip-line">Pago a definir</span>
                     @endif
+                    <button class="btn btn-sm" type="button"
+                            @click="pagando = {{ $orden->id }}">
+                        {{ $e->payment_method ? 'Cambiar' : 'Definir' }}
+                    </button>
                 </div>
 
                 <div class="flex g10 mt16">
@@ -67,6 +73,51 @@
                         <button class="btn btn-primary btn-block" type="submit">Entregado</button>
                     </form>
                 </div>
+            </div>
+
+            {{-- ============ cambiar método de pago ============ --}}
+            <div class="overlay" x-show="pagando === {{ $orden->id }}" x-cloak
+                 @click.self="pagando = null" @keydown.escape.window="pagando = null"
+                 x-data="{ metodo: {{ $e->payment_method ? "'{$e->payment_method}'" : 'null' }}, pagaCon: null }">
+                <form class="modal" style="max-width:420px" method="POST"
+                      action="{{ route('envios.metodo_pago', $orden) }}">
+                    @csrf
+
+                    <div class="modal-hd">
+                        <div class="grow">
+                            <h2>Pedido #{{ $orden->number }}</h2>
+                            <div class="sub">¿Cómo paga?</div>
+                        </div>
+                        <button class="xbtn" type="button" @click="pagando = null">&times;</button>
+                    </div>
+
+                    <div class="modal-bd">
+                        <div class="pays">
+                            <button type="button" class="pay" :class="{ 'is-on': metodo === 'cash' }"
+                                    @click="metodo = 'cash'"><x-icono nombre="cash" />Efectivo</button>
+                            <button type="button" class="pay" :class="{ 'is-on': metodo === 'qr' }"
+                                    @click="metodo = 'qr'; pagaCon = null"><x-icono nombre="qr" />QR / Transf.</button>
+                            <button type="button" class="pay" :class="{ 'is-on': metodo === 'debit' }"
+                                    @click="metodo = 'debit'; pagaCon = null"><x-icono nombre="card" />Tarjeta</button>
+                        </div>
+                        <input type="hidden" name="metodo_pago" :value="metodo ?? ''">
+
+                        <template x-if="metodo === 'cash'">
+                            <div class="field mt16">
+                                <label for="pagacon-{{ $orden->id }}">Paga con</label>
+                                <input id="pagacon-{{ $orden->id }}" class="inp" type="number" step="1" min="0"
+                                       name="paga_con" x-model.number="pagaCon" inputmode="numeric"
+                                       placeholder="50000">
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="modal-ft">
+                        <div class="grow"></div>
+                        <button class="btn" type="button" @click="pagando = null">Cancelar</button>
+                        <button class="btn btn-primary" type="submit" :disabled="! metodo">Guardar</button>
+                    </div>
+                </form>
             </div>
         @empty
             <div class="card">
