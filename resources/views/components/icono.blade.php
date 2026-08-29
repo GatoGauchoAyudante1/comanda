@@ -5,6 +5,7 @@
     $trazos = [
         'mesas'    => '<path d="M3 4h18v12H3z"/><path d="M8 20h8"/><path d="M12 16v4"/>',
         'pedidos'  => '<path d="M4 6h16"/><path d="M4 12h11"/><path d="M4 18h7"/>',
+        'online'   => '<path d="M4 5h16v12H7l-3 3z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
         'caja'     => '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
         'carta'    => '<path d="M5 3h11l3 3v15H5z"/><path d="M9 9h7"/><path d="M9 13h7"/><path d="M9 17h4"/>',
         'stock'    => '<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>',

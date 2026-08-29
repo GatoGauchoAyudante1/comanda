@@ -94,6 +94,23 @@
             @endif
 
             <div class="pane">
+                <div class="pane-hd"><h3>Vista del cliente</h3></div>
+                <p class="t-mute fs14 mb16">
+                    Abrí las pantallas públicas para ver exactamente lo que ve el cliente.
+                </p>
+                <div class="grid2">
+                    <a class="btn btn-soft btn-block" href="{{ route('carta.publica') }}"
+                       target="_blank" rel="noopener noreferrer">
+                        Ver carta pública
+                    </a>
+                    <a class="btn btn-primary btn-block" href="{{ route('pedido-online') }}"
+                       target="_blank" rel="noopener noreferrer">
+                        Ver pedido online
+                    </a>
+                </div>
+            </div>
+
+            <div class="pane">
                 <div class="pane-hd"><h3>Resumen del turno</h3></div>
                 @if ($caja)
                     <div class="lv"><span class="k">Ventas cobradas</span><span class="v">{{ $plata($caja->payments()->sum('amount')) }}</span></div>

@@ -16,6 +16,7 @@
     $items = collect([
         ['id' => 'mesas',    'label' => 'Mesas',    'ruta' => 'panel',    'roles' => ['cajero', 'mozo'],   'modulo' => $modulos['salon'] || $modulos['pool']],
         ['id' => 'pedidos',  'label' => 'Pedidos',  'ruta' => 'pedidos',  'roles' => ['cajero', 'mozo'],   'modulo' => $modulos['delivery']],
+        ['id' => 'online',   'label' => 'Pedidos online', 'ruta' => 'pedidos-online', 'roles' => ['cajero'], 'modulo' => $modulos['delivery']],
         // Los roles de acá deben coincidir con el middleware de routes/web.php.
         // Cajero y mozo pueden entrar a la cocina, así que también la ven.
         ['id' => 'cocina',   'label' => 'Cocina',   'ruta' => 'cocina',   'roles' => ['cocina', 'cajero', 'mozo'], 'modulo' => true],
@@ -49,7 +50,7 @@
 
     // Las subpantallas marcan su módulo: estando en una receta o en un
     // conteo, el rail tiene que seguir señalando de dónde se entró.
-    $padres     = ['receta' => 'recetas', 'conteo' => 'stock'];
+    $padres     = ['receta' => 'recetas', 'conteo' => 'stock', 'pedidos-online.mostrar' => 'pedidos-online'];
     $rutaActual = $activo ?? request()->route()?->getName();
     $rutaActual = $padres[$rutaActual] ?? $rutaActual;
 @endphp

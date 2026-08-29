@@ -11,6 +11,7 @@ use App\Http\Controllers\ConteoController;
 use App\Http\Controllers\RecetaController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\PedidoOnlineController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\RepartidorController;
 use App\Http\Controllers\ReporteController;
@@ -45,6 +46,14 @@ Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
 */
 Route::get('/menu', CartaPublicaController::class)->name('carta.publica');
 
+// Carta con carrito y alta de pedidos, también sin sesión.
+Route::get('/pedido-online', [PedidoOnlineController::class, 'carta'])->name('pedido-online');
+Route::post('/pedido-online/checkout', [PedidoOnlineController::class, 'checkout'])->name('pedido-online.checkout');
+Route::post('/pedido-online', [PedidoOnlineController::class, 'guardar'])
+    ->middleware('throttle:10,1')->name('pedido-online.guardar');
+Route::get('/pedido-online/recibido/{uuid}', [PedidoOnlineController::class, 'recibido'])
+    ->name('pedido-online.recibido');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [SesionController::class, 'mostrar'])->name('login');
     Route::post('/login', [SesionController::class, 'entrar'])->name('login.entrar');
@@ -73,6 +82,14 @@ Route::middleware('auth')->group(function () {
 
         // El mozo también imprime: la precuenta es tarea suya.
         Route::get('/pedidos/{orden}/ticket', [TicketController::class, 'mostrar'])->name('ticket');
+    });
+
+    // Los pedidos hechos por clientes requieren una decisión del cajero o dueño.
+    Route::middleware('rol:cajero')->group(function () {
+        Route::get('/pedidos-online', [PedidoOnlineController::class, 'index'])->name('pedidos-online');
+        Route::get('/pedidos-online/{pedidoOnline}', [PedidoOnlineController::class, 'mostrar'])->name('pedidos-online.mostrar');
+        Route::post('/pedidos-online/{pedidoOnline}/confirmar', [PedidoOnlineController::class, 'confirmar'])->name('pedidos-online.confirmar');
+        Route::post('/pedidos-online/{pedidoOnline}/rechazar', [PedidoOnlineController::class, 'rechazar'])->name('pedidos-online.rechazar');
     });
 
     // Cobro y anulación: sólo cajero y dueño. El mozo no cobra (R-28)
