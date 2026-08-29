@@ -75,6 +75,13 @@ class AvanzarPedido
             throw new RuntimeException('Asigná un repartidor antes de mandarlo a la calle.');
         }
 
+        // Entregar es lo que genera el cobro (ver entregar()). Sin medio de pago
+        // ese cobro se registraría a ciegas y el arqueo cerraría mal: mejor
+        // frenar acá y que alguien pregunte cómo abonó el cliente.
+        if ($nuevoEstado === 'delivered' && $orden->delivery && ! $orden->delivery->payment_method) {
+            throw new RuntimeException('Antes de entregar hay que indicar cómo pagó el cliente.');
+        }
+
         return DB::transaction(function () use ($orden, $nuevoEstado, $usuario, $repartidorId) {
             $avisos = [];
 
@@ -149,6 +156,8 @@ class AvanzarPedido
         // Si todavía no se registró la plata, se registra ahora con el medio
         // que se acordó al tomar el pedido.
         if ($orden->saldo() > 0 && $orden->cash_session_id) {
+            // El pedido con envío llega acá siempre con medio definido (se
+            // valida arriba); el `?? 'cash'` cubre al mostrador, que no lo tiene.
             $metodo  = $orden->delivery?->payment_method ?? 'cash';
             $importe = $orden->saldo();
 

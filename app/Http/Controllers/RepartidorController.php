@@ -50,12 +50,31 @@ class RepartidorController extends Controller
         ]);
     }
 
-    public function entregar(Request $request, Order $orden, AvanzarPedido $avanzar): RedirectResponse
+    /**
+     * El cadete confirma la entrega. Si el pedido salió sin medio de pago
+     * definido, la pantalla se lo pregunta y lo manda acá: sin eso el cobro
+     * no se puede registrar y la caja no cierra.
+     */
+    public function entregar(Request $request, Order $orden, AvanzarPedido $avanzar, CambiarMetodoPago $cambiar): RedirectResponse
     {
         // Sólo sus propios envíos. Ver docs/06-reglas-negocio.md · R-29.
         abort_unless($orden->delivery?->driver_id === $request->user()->id, 403);
 
+        $datos = $request->validate([
+            'metodo_pago' => ['nullable', 'in:cash,qr,transfer,debit,credit'],
+            'paga_con'    => ['nullable', 'numeric', 'min:0'],
+        ]);
+
         try {
+            if (! empty($datos['metodo_pago'])) {
+                $cambiar(
+                    $orden,
+                    $datos['metodo_pago'],
+                    $request->user(),
+                    isset($datos['paga_con']) ? Plata::aCentavos($datos['paga_con']) : null,
+                );
+            }
+
             $avanzar($orden, 'delivered', $request->user());
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());

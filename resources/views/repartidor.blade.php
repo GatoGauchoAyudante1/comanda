@@ -13,7 +13,7 @@
 @endsection
 
 @section('contenido')
-<div x-data="{ rindiendo: false, entregado: {{ $aRendir / 100 }}, pagando: null }">
+<div x-data="{ rindiendo: false, entregado: {{ $aRendir / 100 }}, pagando: null, entregando: null }">
     <div class="narrow">
 
         <div class="strip3">
@@ -68,11 +68,53 @@
                             <x-icono nombre="phone" />Llamar
                         </a>
                     @endif
-                    <form method="POST" action="{{ route('envios.entregar', $orden) }}" class="grow">
-                        @csrf
-                        <button class="btn btn-primary btn-block" type="submit">Entregado</button>
-                    </form>
+                    {{-- Entregar registra el cobro: sin medio de pago se pregunta antes. --}}
+                    @if ($e->payment_method)
+                        <form method="POST" action="{{ route('envios.entregar', $orden) }}" class="grow">
+                            @csrf
+                            <button class="btn btn-primary btn-block" type="submit">Entregado</button>
+                        </form>
+                    @else
+                        <button class="btn btn-primary grow" type="button"
+                                @click="entregando = {{ $orden->id }}">Entregado</button>
+                    @endif
                 </div>
+            </div>
+
+            {{-- ============ entregar definiendo el cobro ============ --}}
+            <div class="overlay" x-show="entregando === {{ $orden->id }}" x-cloak
+                 @click.self="entregando = null" @keydown.escape.window="entregando = null"
+                 x-data="{ metodo: null, pagaCon: null }">
+                <form class="modal" style="max-width:420px" method="POST"
+                      action="{{ route('envios.entregar', $orden) }}">
+                    @csrf
+
+                    <div class="modal-hd">
+                        <div class="grow">
+                            <h2>Entregar #{{ $orden->number }}</h2>
+                            <div class="sub">¿Cómo abonó el cliente?</div>
+                        </div>
+                        <button class="xbtn" type="button" @click="entregando = null">&times;</button>
+                    </div>
+
+                    <div class="modal-bd">
+                        <div class="notice mb16">
+                            <span class="dot dot-mute"></span>
+                            <div>
+                                <div class="tt">Son @plata($orden->total)</div>
+                                <div class="ds">Queda registrado en la caja con el medio que elijas.</div>
+                            </div>
+                        </div>
+
+                        <x-medios-pago :id="'entrega-' . $orden->id" />
+                    </div>
+
+                    <div class="modal-ft">
+                        <div class="grow"></div>
+                        <button class="btn" type="button" @click="entregando = null">Cancelar</button>
+                        <button class="btn btn-primary" type="submit" :disabled="! metodo">Entregado</button>
+                    </div>
+                </form>
             </div>
 
             {{-- ============ cambiar método de pago ============ --}}
@@ -92,24 +134,7 @@
                     </div>
 
                     <div class="modal-bd">
-                        <div class="pays">
-                            <button type="button" class="pay" :class="{ 'is-on': metodo === 'cash' }"
-                                    @click="metodo = 'cash'"><x-icono nombre="cash" />Efectivo</button>
-                            <button type="button" class="pay" :class="{ 'is-on': metodo === 'qr' }"
-                                    @click="metodo = 'qr'; pagaCon = null"><x-icono nombre="qr" />QR / Transf.</button>
-                            <button type="button" class="pay" :class="{ 'is-on': metodo === 'debit' }"
-                                    @click="metodo = 'debit'; pagaCon = null"><x-icono nombre="card" />Tarjeta</button>
-                        </div>
-                        <input type="hidden" name="metodo_pago" :value="metodo ?? ''">
-
-                        <template x-if="metodo === 'cash'">
-                            <div class="field mt16">
-                                <label for="pagacon-{{ $orden->id }}">Paga con</label>
-                                <input id="pagacon-{{ $orden->id }}" class="inp" type="number" step="1" min="0"
-                                       name="paga_con" x-model.number="pagaCon" inputmode="numeric"
-                                       placeholder="50000">
-                            </div>
-                        </template>
+                        <x-medios-pago :id="$orden->id" />
                     </div>
 
                     <div class="modal-ft">

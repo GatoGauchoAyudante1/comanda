@@ -186,14 +186,32 @@ class PedidoController extends Controller
             ->with('ok', "Pedido #{$orden->number} tomado por " . Plata::format($orden->total) . '.');
     }
 
-    public function avanzar(Request $request, Order $orden, AvanzarPedido $avanzar): RedirectResponse
+    /**
+     * Mover el pedido al estado siguiente (o al anterior).
+     *
+     * Al entregar puede venir el medio de pago: si el pedido llegó hasta acá
+     * sin definirlo, el tablero lo pregunta en ese momento y lo manda junto
+     * con el estado, porque sin eso no se puede registrar el cobro.
+     */
+    public function avanzar(Request $request, Order $orden, AvanzarPedido $avanzar, CambiarMetodoPago $cambiar): RedirectResponse
     {
         $datos = $request->validate([
-            'estado'    => ['required', 'string'],
-            'driver_id' => ['nullable', 'exists:users,id'],
+            'estado'      => ['required', 'string'],
+            'driver_id'   => ['nullable', 'exists:users,id'],
+            'metodo_pago' => ['nullable', 'in:cash,qr,transfer,debit,credit'],
+            'paga_con'    => ['nullable', 'numeric', 'min:0'],
         ]);
 
         try {
+            if (! empty($datos['metodo_pago'])) {
+                $cambiar(
+                    $orden,
+                    $datos['metodo_pago'],
+                    $request->user(),
+                    isset($datos['paga_con']) ? Plata::aCentavos($datos['paga_con']) : null,
+                );
+            }
+
             $avisos = $avanzar($orden, $datos['estado'], $request->user(), $datos['driver_id'] ?? null);
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
