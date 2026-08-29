@@ -35,21 +35,23 @@ class ConfiguracionController extends Controller
     public function index(): View
     {
         return view('configuracion', [
-            'modulos'      => self::MODULOS,
-            'tarifas'      => TableRate::orderByDesc('is_default')->orderBy('name')->get(),
-            'zonas'        => Zone::orderBy('name')->get(),
-            'usuarios'     => User::orderBy('role')->orderBy('name')->get()
+            'modulos'          => self::MODULOS,
+            'tarifas'          => TableRate::orderByDesc('is_default')->orderBy('name')->get(),
+            'zonas'            => Zone::orderBy('name')->get(),
+            'usuarios'         => User::orderBy('role')->orderBy('name')->get()
                 ->each(fn (User $u) => $u->setAttribute('borrable', ! $u->tieneHistorial())),
-            'roles'        => User::ROLES,
-            'mesas'        => Table::orderBy('type')->orderBy('sort_order')->get()->groupBy('type'),
-            'rolesCocina'  => self::ROLES_COCINA,
-            'marcanListo'  => Negocio::rolesQueMarcanListo(),
-            'cartaPublica' => Negocio::cartaPublica(),
-            'cartaMensaje' => Negocio::cartaMensaje(),
-            'cartaUrl'     => route('carta.publica'),
+            'roles'            => User::ROLES,
+            'mesas'            => Table::orderBy('type')->orderBy('sort_order')->get()->groupBy('type'),
+            'rolesCocina'      => self::ROLES_COCINA,
+            'marcanListo'      => Negocio::rolesQueMarcanListo(),
+            'cartaPublica'     => Negocio::cartaPublica(),
+            'cartaMensaje'     => Negocio::cartaMensaje(),
+            'cartaUrl'         => route('carta.publica'),
+            'ticketDetalle'    => Negocio::detalleTicketEditable(),
+            'ticketPlantillas' => Negocio::detallesTicket(),
             // El QR sólo se dibuja si la carta está publicada: si el link
             // devuelve 404, mostrarlo sería invitar a imprimir un cartel roto.
-            'cartaQr'      => Negocio::cartaPublica() ? Qr::svg(route('carta.publica'), 190) : null,
+            'cartaQr'          => Negocio::cartaPublica() ? Qr::svg(route('carta.publica'), 190) : null,
         ]);
     }
 
@@ -88,6 +90,60 @@ class ConfiguracionController extends Controller
         Negocio::olvidar();
 
         return back()->with('ok', 'Mensaje de la carta guardado.');
+    }
+
+    /**
+     * Prender o apagar el detalle editable del ticket.
+     *
+     * Queda en la bitácora por lo mismo que la carta pública: cambia lo que se
+     * lleva alguien de afuera. Ver R-40.
+     */
+    public function alternarTicketDetalle(): RedirectResponse
+    {
+        $nuevo = ! Negocio::detalleTicketEditable();
+
+        Setting::put('receipt.editable_detail', $nuevo ? '1' : '0', 'bool');
+        Negocio::olvidar();
+
+        Bitacora::registrar(
+            'config.ticket',
+            $nuevo
+                ? 'Habilitó cambiar el detalle del ticket'
+                : 'Deshabilitó cambiar el detalle del ticket',
+        );
+
+        return back()->with('ok', $nuevo
+            ? 'Al cobrar, el ticket ahora deja cambiar el detalle antes de imprimir.'
+            : 'El ticket vuelve a salir siempre con el detalle completo.');
+    }
+
+    /**
+     * Los textos que el cajero elige con un toque.
+     *
+     * Uno por línea. La lista puede quedar vacía: en ese caso el cajero
+     * escribe el texto a mano y no se le sugiere nada.
+     */
+    public function guardarTicketPlantillas(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'textos' => ['nullable', 'string', 'max:600'],
+        ]);
+
+        $lista = collect(preg_split('/\R/', (string) ($datos['textos'] ?? '')))
+            ->map(fn (string $t) => mb_substr(trim($t), 0, 40))
+            ->filter()
+            // Diez son más de las que alguien lee de un vistazo en el ticket.
+            ->unique()
+            ->take(10)
+            ->values()
+            ->all();
+
+        Setting::put('receipt.detail_templates', $lista, 'json');
+        Negocio::olvidar();
+
+        return back()->with('ok', $lista !== []
+            ? count($lista) . ' texto(s) guardados.'
+            : 'Sin textos frecuentes: el cajero lo escribe a mano.');
     }
 
     /**

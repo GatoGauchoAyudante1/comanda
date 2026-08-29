@@ -72,7 +72,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/mesas/{sesion}/consumo/{item}', [ConsumoController::class, 'quitar'])->name('consumo.quitar');
 
         // El mozo también imprime: la precuenta es tarea suya.
-        Route::get('/pedidos/{orden}/ticket', TicketController::class)->name('ticket');
+        Route::get('/pedidos/{orden}/ticket', [TicketController::class, 'mostrar'])->name('ticket');
     });
 
     // Cobro y anulación: sólo cajero y dueño. El mozo no cobra (R-28)
@@ -86,6 +86,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/pedidos/{orden}/pagos/{pago}', [CobroController::class, 'quitarPago'])->name('cobro.pago.quitar');
         Route::post('/pedidos/{orden}/confirmar', [CobroController::class, 'confirmar'])->name('cobro.confirmar');
         Route::post('/pedidos/{orden}/cancelar-cobro', [CobroController::class, 'cancelar'])->name('cobro.cancelar');
+
+        // Reescribir el detalle del comprobante: cuenta ya cobrada y sólo el
+        // que cobró. El mozo imprime la precuenta, no el comprobante (R-40).
+        Route::post('/pedidos/{orden}/ticket/detalle', [TicketController::class, 'guardarDetalle'])->name('ticket.detalle');
     });
 
     // Delivery
@@ -182,6 +186,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/ajustes/carta', [ConfiguracionController::class, 'guardarCarta'])->name('configuracion.carta');
         Route::post('/ajustes/carta/publicar', [ConfiguracionController::class, 'alternarCartaPublica'])->name('configuracion.carta.publicar');
         Route::get('/ajustes/carta/qr', [ConfiguracionController::class, 'qr'])->name('configuracion.carta.qr');
+
+        Route::post('/ajustes/ticket', [ConfiguracionController::class, 'alternarTicketDetalle'])->name('configuracion.ticket');
+        Route::post('/ajustes/ticket/textos', [ConfiguracionController::class, 'guardarTicketPlantillas'])->name('configuracion.ticket.textos');
 
         Route::post('/ajustes/mesas', [ConfiguracionController::class, 'crearMesas'])->name('configuracion.mesas');
         Route::post('/ajustes/mesas/{mesa}/alternar', [ConfiguracionController::class, 'alternarMesa'])->name('configuracion.mesa.alternar');

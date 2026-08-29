@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
 use App\Support\Bitacora;
+use App\Support\Negocio;
 use App\Support\Plata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,15 @@ class AvanzarPedido
     {
         if (in_array($orden->status, ['paid', 'cancelled'], true)) {
             throw new RuntimeException('Este pedido ya está cerrado.');
+        }
+
+        // Marcar listo es el mismo permiso acá que en la pantalla de cocina
+        // (R-36). El tablero de pedidos es otra puerta a la misma decisión:
+        // sin este chequeo, cualquiera que entre al tablero despacha un plato
+        // que nadie cocinó. Va en la acción y no en el controlador porque es
+        // el único lugar por el que pasan todos los cambios de estado.
+        if ($nuevoEstado === 'ready' && ! Negocio::puedeMarcarListo($usuario)) {
+            throw new RuntimeException('No tenés permiso para marcar pedidos como listos.');
         }
 
         // Sólo se avanza o se retrocede de a un paso. Sin esto, un pedido

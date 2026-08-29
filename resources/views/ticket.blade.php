@@ -65,10 +65,43 @@
     }
     .acciones .primario { background: #28be7e; color: #04150c; border-color: transparent; }
 
+    /* Reescribir el detalle: sólo en pantalla, igual que las acciones. */
+    .editor {
+        width: 80mm; margin: 0 auto 12px; padding: 14px;
+        background: #1a1f1d; color: #e8ece9;
+        border: 1px solid #333b37; border-radius: 12px;
+        font-family: system-ui, sans-serif;
+    }
+    .editor .et { font-size: 14px; font-weight: 700; }
+    .editor .ep { margin: 4px 0 12px; font-size: 12.5px; line-height: 1.45; color: #98a29c; }
+    .editor .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .editor .fila { display: flex; gap: 8px; }
+    .editor input {
+        flex: 1; min-width: 0; height: 40px; padding: 0 10px;
+        font-size: 14px; font-family: inherit; color: #e8ece9;
+        background: #121614; border: 1px solid #4a534f; border-radius: 8px;
+    }
+    .editor .chip {
+        padding: 6px 12px; font-size: 12.5px; font-family: inherit; cursor: pointer;
+        color: #e8ece9; background: #232926;
+        border: 1px solid #4a534f; border-radius: 999px;
+    }
+    .editor .chip:hover { color: #28be7e; border-color: #28be7e; }
+    .editor .guardar {
+        padding: 0 14px; height: 40px; font-size: 13px; font-weight: 600;
+        font-family: inherit; cursor: pointer; white-space: nowrap;
+        color: #04150c; background: #28be7e; border: none; border-radius: 8px;
+    }
+    .editor .deshacer {
+        margin-top: 10px; padding: 0; font-size: 12.5px; font-family: inherit;
+        color: #98a29c; background: none; border: none; cursor: pointer;
+        text-decoration: underline;
+    }
+
     @media print {
         body { background: #fff; }
         .papel { margin: 0; box-shadow: none; width: auto; min-height: 0; }
-        .acciones { display: none !important; }
+        .acciones, .editor { display: none !important; }
     }
 </style>
 </head>
@@ -76,7 +109,13 @@
 
 <div class="papel">
 
-    @php $cobrado = $orden->status === 'paid'; @endphp
+    @php
+        $cobrado = $orden->status === 'paid';
+        // Detalle pedido por el cliente: una línea en vez de los consumos (R-40).
+        // Se respeta siempre que esté guardado, aunque después apaguen la
+        // opción: un comprobante reimpreso tiene que salir como el original.
+        $resumen = $orden->receipt_detail;
+    @endphp
 
     <div class="centro grande">{{ mb_strtoupper(\App\Support\Negocio::nombre()) }}</div>
 
@@ -114,48 +153,64 @@
             <td class="imp">IMPORTE</td>
         </tr>
 
-        @foreach ($orden->items as $item)
-            <tr>
-                <td class="cant">{{ $item->qty }}</td>
-                <td>
-                    {{ $item->product->name }}@if ($item->variant) {{ $item->variant->name }}@endif
-                </td>
-                <td class="imp">{{ $importe($item->subtotal()) }}</td>
-            </tr>
-            @if ($item->notes)
-                <tr><td colspan="3" class="nota">- {{ $item->notes }}</td></tr>
-            @endif
-        @endforeach
+        @if ($resumen)
 
-        @if ($orden->time_amount > 0)
-            @php $s = $orden->tableSession; @endphp
             <tr>
                 <td class="cant"></td>
-                <td>Tiempo de mesa
-                    {{ intdiv($s->minutosCobrados(), 60) }}:{{ str_pad($s->minutosCobrados() % 60, 2, '0', STR_PAD_LEFT) }} hs</td>
-                <td class="imp">{{ $importe($orden->time_amount) }}</td>
+                <td>{{ $resumen }}</td>
+                <td class="imp">{{ $importe($orden->total) }}</td>
             </tr>
-            <tr>
-                <td colspan="3" class="nota">
-                    {{ $s->started_at->format('H:i') }} a {{ $s->ended_at?->format('H:i') }}
-                    · {{ $importe($s->rate_price_per_hour) }}/hora
-                </td>
-            </tr>
+
+        @else
+
+            @foreach ($orden->items as $item)
+                <tr>
+                    <td class="cant">{{ $item->qty }}</td>
+                    <td>
+                        {{ $item->product->name }}@if ($item->variant) {{ $item->variant->name }}@endif
+                    </td>
+                    <td class="imp">{{ $importe($item->subtotal()) }}</td>
+                </tr>
+                @if ($item->notes)
+                    <tr><td colspan="3" class="nota">- {{ $item->notes }}</td></tr>
+                @endif
+            @endforeach
+
+            @if ($orden->time_amount > 0)
+                @php $s = $orden->tableSession; @endphp
+                <tr>
+                    <td class="cant"></td>
+                    <td>Tiempo de mesa
+                        {{ intdiv($s->minutosCobrados(), 60) }}:{{ str_pad($s->minutosCobrados() % 60, 2, '0', STR_PAD_LEFT) }} hs</td>
+                    <td class="imp">{{ $importe($orden->time_amount) }}</td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="nota">
+                        {{ $s->started_at->format('H:i') }} a {{ $s->ended_at?->format('H:i') }}
+                        · {{ $importe($s->rate_price_per_hour) }}/hora
+                    </td>
+                </tr>
+            @endif
+
         @endif
     </table>
 
     <div class="sep"></div>
 
     <table>
-        @if ($orden->time_amount > 0)
-            <tr><td>Consumos</td><td class="imp">{{ $importe($orden->items_total) }}</td></tr>
-            <tr><td>Tiempo</td><td class="imp">{{ $importe($orden->time_amount) }}</td></tr>
-        @endif
-        @if ($orden->delivery_fee > 0)
-            <tr><td>Envío</td><td class="imp">{{ $importe($orden->delivery_fee) }}</td></tr>
-        @endif
-        @if ($orden->discount > 0)
-            <tr><td>Descuento</td><td class="imp">-{{ $importe($orden->discount) }}</td></tr>
+        {{-- La apertura del total sólo se imprime con el detalle completo:
+             desglosar consumos y tiempo delataría lo que el resumen oculta. --}}
+        @if (! $resumen)
+            @if ($orden->time_amount > 0)
+                <tr><td>Consumos</td><td class="imp">{{ $importe($orden->items_total) }}</td></tr>
+                <tr><td>Tiempo</td><td class="imp">{{ $importe($orden->time_amount) }}</td></tr>
+            @endif
+            @if ($orden->delivery_fee > 0)
+                <tr><td>Envío</td><td class="imp">{{ $importe($orden->delivery_fee) }}</td></tr>
+            @endif
+            @if ($orden->discount > 0)
+                <tr><td>Descuento</td><td class="imp">-{{ $importe($orden->discount) }}</td></tr>
+            @endif
         @endif
         <tr class="total"><td>TOTAL</td><td class="imp">{{ $importe($orden->total) }}</td></tr>
     </table>
@@ -193,6 +248,59 @@
     </div>
 
 </div>
+
+@if ($puedeEditarDetalle)
+    {{--
+      Cambiar el detalle antes de entregar el comprobante.
+
+      Lo pide el cliente que rinde gastos: necesita el ticket, pero no que en
+      la empresa se lea qué consumió. El total no se toca — acá sólo se elige
+      cómo se lee. Ver docs/06-reglas-negocio.md · R-40.
+    --}}
+    <div class="editor">
+        <div class="et">Detalle del comprobante</div>
+        <p class="ep">
+            Reemplaza la lista de consumos por un texto. El total no cambia
+            y en el sistema queda todo como está.
+        </p>
+
+        <form id="fdetalle" method="POST" action="{{ route('ticket.detalle', $orden) }}">
+            @csrf
+
+            @if ($plantillas)
+                <div class="chips">
+                    @foreach ($plantillas as $plantilla)
+                        <button class="chip" type="button" data-texto="{{ $plantilla }}">{{ $plantilla }}</button>
+                    @endforeach
+                </div>
+            @endif
+
+            <div class="fila">
+                <input id="detalle" name="detalle" maxlength="40" autocomplete="off"
+                       value="{{ $resumen }}" placeholder="Ej: Almuerzo">
+                <button class="guardar" type="submit">Guardar e imprimir</button>
+            </div>
+        </form>
+
+        @if ($resumen)
+            <form method="POST" action="{{ route('ticket.detalle', $orden) }}">
+                @csrf
+                <input type="hidden" name="detalle" value="">
+                <button class="deshacer" type="submit">Volver al detalle completo</button>
+            </form>
+        @endif
+    </div>
+
+    {{-- Un toque en el texto frecuente ya imprime: es el caso de todos los días. --}}
+    <script>
+        document.querySelectorAll('.editor .chip').forEach((boton) => {
+            boton.addEventListener('click', () => {
+                document.getElementById('detalle').value = boton.dataset.texto;
+                document.getElementById('fdetalle').submit();
+            });
+        });
+    </script>
+@endif
 
 <div class="acciones">
     <a href="{{ $volver }}">Volver</a>

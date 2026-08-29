@@ -741,18 +741,20 @@ select.inp optgroup{
    ------------------------------------------------------------ */
 .miniatura{
   flex:none;width:34px;height:34px;border-radius:8px;
-  object-fit:cover;background:var(--panel-2);border:1px solid var(--line);
+  object-fit:contain;background:#fff;border:1px solid var(--line);
 }
-.miniatura-vacia{border-style:dashed;border-color:var(--line-2)}
+/* el hueco vacío no lleva foto: vuelve al fondo del panel */
+.miniatura-vacia{border-style:dashed;border-color:var(--line-2);background:var(--panel-2)}
 
 .foto-campo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .foto-previa{
   flex:none;width:76px;height:76px;border-radius:var(--r-sm);
-  object-fit:cover;background:var(--panel-2);border:1px solid var(--line-2);
+  object-fit:contain;background:#fff;border:1px solid var(--line-2);
 }
 .foto-vacia{
   display:flex;align-items:center;justify-content:center;
   border-style:dashed;font-size:12px;color:var(--txt-3);
+  background:var(--panel-2);
 }
 /* el selector de archivo nativo no acepta los estilos de .inp */
 .foto-campo input[type=file]{padding:9px 11px;font-size:13.5px;cursor:pointer}

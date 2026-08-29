@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\Zone;
 use App\Support\Bitacora;
+use App\Support\Negocio;
 use App\Support\Plata;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +32,7 @@ class PedidoController extends Controller
      * mientras el cliente consume, y lo que avanza es el estado de cada ítem.
      * Por eso a las mesas se las ubica por sus ítems.
      */
-    public function tablero(AvanzarPedido $avanzar): View
+    public function tablero(Request $request, AvanzarPedido $avanzar): View
     {
         $relaciones = [
             'items.product', 'items.variant',
@@ -75,6 +76,10 @@ class PedidoController extends Controller
             ],
             'repartidores' => User::where('role', 'repartidor')->where('active', true)->get(),
             'avanzar'      => $avanzar,
+            // Mismo permiso que en la pantalla de cocina (R-36): el tablero no
+            // ofrece «Listo» a quien no puede marcarlo. La acción igual lo
+            // frena, pero un botón que siempre falla no debería estar ahí.
+            'puedeMarcarListo' => Negocio::puedeMarcarListo($request->user()),
             'delDia'       => Order::whereIn('type', ['delivery', 'retiro'])
                 ->where('status', 'paid')
                 ->whereDate('created_at', today()),

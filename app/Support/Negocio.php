@@ -61,6 +61,41 @@ class Negocio
         return trim((string) (self::settings()['menu.note'] ?? ''));
     }
 
+    /**
+     * ¿El cajero puede reescribir el detalle del ticket antes de imprimirlo?
+     *
+     * Apagado de fábrica: el ticket sale con el mismo detalle que la comanda,
+     * que es lo que quiere casi todo el mundo. Se prende sólo donde hace falta,
+     * porque cada interruptor de más es una pregunta de más para el cajero.
+     * Ver docs/06-reglas-negocio.md · R-40.
+     */
+    public static function detalleTicketEditable(): bool
+    {
+        return filter_var(self::settings()['receipt.editable_detail'] ?? false, FILTER_VALIDATE_BOOL);
+    }
+
+    /** Lo que se ofrece con un toque; el cajero igual puede escribir otra cosa. */
+    public const DETALLES_TICKET = ['Consumos mesa', 'Almuerzo', 'Cena', 'Bebidas', 'Varios'];
+
+    /**
+     * Textos frecuentes para el detalle del ticket.
+     *
+     * Si el dueño guardó su propia lista manda la suya, aunque la haya dejado
+     * vacía: vaciarla es decir «no me sugieras nada, lo escribo yo».
+     *
+     * @return array<int, string>
+     */
+    public static function detallesTicket(): array
+    {
+        if (! array_key_exists('receipt.detail_templates', self::settings())) {
+            return self::DETALLES_TICKET;
+        }
+
+        $lista = json_decode(self::settings()['receipt.detail_templates'], true);
+
+        return is_array($lista) ? array_values($lista) : self::DETALLES_TICKET;
+    }
+
     /** ¿Está activo un módulo? salon | pool | delivery | stock */
     public static function modulo(string $nombre): bool
     {

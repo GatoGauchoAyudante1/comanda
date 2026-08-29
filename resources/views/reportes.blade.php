@@ -48,6 +48,36 @@
         @endforeach
     </div>
 
+    {{-- Los botones cubren la pregunta de todos los días; las fechas son para
+         ir a buscar algo puntual: el finde largo, el mes ya cerrado, el día
+         que hubo lío. Formulario GET a secas — el reporte se comparte y se
+         vuelve a abrir por la URL, así que el período tiene que estar ahí. --}}
+    <form method="GET" action="{{ route('reportes') }}" class="card mb16">
+        <div class="flex g10 wrap" style="align-items:flex-end">
+            <div class="field" style="flex:1;min-width:145px">
+                <label for="desde">Desde</label>
+                <input id="desde" class="inp" type="date" name="desde" value="{{ $desde->toDateString() }}">
+            </div>
+            <div class="field" style="flex:1;min-width:145px">
+                <label for="hasta">Hasta</label>
+                <input id="hasta" class="inp" type="date" name="hasta" value="{{ $hasta->toDateString() }}">
+            </div>
+
+            <button class="btn btn-primary" type="submit" style="height:50px">Ver período</button>
+
+            @if ($rango === 'personalizado')
+                <a class="btn" href="{{ route('reportes') }}" style="height:50px">Volver a hoy</a>
+            @endif
+        </div>
+
+        @if ($recortado)
+            <div class="fs13 t-amber mt12">
+                El período pedido era muy largo: se muestran los últimos {{ $maxDias }} días,
+                desde el {{ $desde->format('d/m/Y') }}.
+            </div>
+        @endif
+    </form>
+
     @if ($actual['tickets'] === 0)
         <div class="notice mb16">
             <span class="dot dot-mute"></span>

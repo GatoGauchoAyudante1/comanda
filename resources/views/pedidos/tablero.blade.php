@@ -42,6 +42,12 @@
                             $entrega  = $pedido->delivery;
                             $esMesa   = $pedido->esMesa() || $pedido->type === 'mostrador';
                             $proximo  = $esMesa ? null : $avanzar->siguiente($pedido);
+                            // Marcar listo se pide igual que en cocina (R-36).
+                            // Sin permiso el paso no se ofrece: el pedido queda
+                            // esperando a que cocina lo saque.
+                            if ($proximo === 'ready' && ! $puedeMarcarListo) {
+                                $proximo = null;
+                            }
                         @endphp
 
                         <div class="kcard {{ $urgencia }}">

@@ -58,6 +58,8 @@ class CartaController extends Controller
     {
         $datos = $request->validate([
             'name'            => ['required', 'string', 'max:120', Rule::unique('products', 'name')->ignore($producto)],
+            // Opcional: la mayoría de los productos se explican con el nombre.
+            'description'     => ['nullable', 'string', 'max:300'],
             'category_id'     => ['required', 'exists:categories,id'],
             'price'           => ['required', 'numeric', 'min:0'],
             'goes_to_kitchen' => ['nullable', 'boolean'],
@@ -71,6 +73,9 @@ class CartaController extends Controller
 
         $valores = [
             'name'            => $datos['name'],
+            // Vaciar el campo tiene que borrar la descripción, no dejar '' en
+            // base: la carta pregunta por null para saber si hay renglón.
+            'description'     => filled($datos['description'] ?? null) ? trim($datos['description']) : null,
             'category_id'     => $datos['category_id'],
             'price'           => Plata::aCentavos($datos['price']),
             'goes_to_kitchen' => $request->boolean('goes_to_kitchen'),

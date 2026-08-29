@@ -21,31 +21,112 @@ use Illuminate\Support\Carbon;
  */
 class ReporteController extends Controller
 {
+    /**
+     * Tope de días de un período a medida.
+     *
+     * El costo real recorre en PHP los movimientos de stock del período (ver
+     * resumen()): con un «desde» de hace cinco años eso es traerse la tabla
+     * entera a memoria. Un año es más de lo que nadie compara de una sentada.
+     */
+    private const MAX_DIAS = 366;
+
     public function __invoke(Request $request): View
     {
-        $rango = $request->string('rango')->toString() ?: 'hoy';
-        [$desde, $hasta] = $this->rango($rango);
+        ['rango' => $rango, 'desde' => $desde, 'hasta' => $hasta, 'recortado' => $recortado]
+            = $this->periodo($request);
 
         // Mismo largo de período, corrido hacia atrás, para comparar.
         $largo = $desde->diffInDays($hasta) + 1;
         [$desdeAnt, $hastaAnt] = [$desde->copy()->subDays($largo), $desde->copy()->subDay()];
 
         return view('reportes', [
-            'rango'    => $rango,
-            'desde'    => $desde,
-            'hasta'    => $hasta,
-            'actual'   => $this->resumen($desde, $hasta),
-            'anterior' => $this->resumen($desdeAnt, $hastaAnt),
-            'porHora'  => $this->porHora($desde, $hasta),
-            'medios'   => $this->medios($desde, $hasta),
-            'ranking'  => $this->ranking($desde, $hasta),
-            'canales'  => $this->canales($desde, $hasta),
-            'pool'     => $this->pool($desde, $hasta),
+            'rango'     => $rango,
+            'desde'     => $desde,
+            'hasta'     => $hasta,
+            'recortado' => $recortado,
+            'maxDias'   => self::MAX_DIAS,
+            'actual'    => $this->resumen($desde, $hasta),
+            'anterior'  => $this->resumen($desdeAnt, $hastaAnt),
+            'porHora'   => $this->porHora($desde, $hasta),
+            'medios'    => $this->medios($desde, $hasta),
+            'ranking'   => $this->ranking($desde, $hasta),
+            'canales'   => $this->canales($desde, $hasta),
+            'pool'      => $this->pool($desde, $hasta),
         ]);
     }
 
+    /**
+     * Qué período se está mirando.
+     *
+     * Los tres botones (hoy · semana · mes) resuelven la pregunta de todos los
+     * días. Las fechas sueltas son para la otra: el finde largo, el mes ya
+     * cerrado, el día que hubo lío y hay que ir a mirarlo.
+     *
+     * Es tolerante a propósito. Esto entra por la URL y un reporte no es un
+     * alta: ante una fecha dada vuelta o una sola punta cargada muestra algo
+     * razonable, en vez de devolver al dueño a un formulario con un error.
+     *
+     * @return array{rango:string, desde:Carbon, hasta:Carbon, recortado:bool}
+     */
+    private function periodo(Request $request): array
+    {
+        $desde = $this->fecha($request->query('desde'));
+        $hasta = $this->fecha($request->query('hasta'));
+
+        // Sin fechas manda el botón, que es el camino de siempre.
+        if (! $desde && ! $hasta) {
+            $rango = $request->string('rango')->toString() ?: 'hoy';
+            [$desde, $hasta] = $this->preset($rango);
+
+            return ['rango' => $rango, 'desde' => $desde, 'hasta' => $hasta, 'recortado' => false];
+        }
+
+        // Con una sola punta cargada, el período es ese día solo: es lo que se
+        // está pidiendo cuando se elige una fecha y se aprieta Ver.
+        $desde ??= $hasta;
+        $hasta ??= $desde;
+
+        // Al revés se dan vuelta: quien las cargó igual quería mirar esos días.
+        if ($desde->gt($hasta)) {
+            [$desde, $hasta] = [$hasta, $desde];
+        }
+
+        $recortado = $desde->diffInDays($hasta) + 1 > self::MAX_DIAS;
+
+        // Se recorta y la pantalla lo dice. Devolver los números de un período
+        // distinto al pedido, sin avisar, es peor que no devolverlos.
+        if ($recortado) {
+            $desde = $hasta->copy()->subDays(self::MAX_DIAS - 1);
+        }
+
+        return ['rango' => 'personalizado', 'desde' => $desde, 'hasta' => $hasta, 'recortado' => $recortado];
+    }
+
+    /**
+     * Una fecha de la URL, o null si no vino o no se entiende.
+     *
+     * El input date siempre manda Y-m-d. Cualquier otra cosa es alguien
+     * escribiendo en la barra de direcciones, y se ignora en silencio. El
+     * formato se compara de ida y de vuelta porque createFromFormat() acepta
+     * un 2026-02-31 y lo corre solo al 3 de marzo.
+     */
+    private function fecha(mixed $valor): ?Carbon
+    {
+        if (! is_string($valor) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor)) {
+            return null;
+        }
+
+        try {
+            $fecha = Carbon::createFromFormat('Y-m-d', $valor)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $fecha->format('Y-m-d') === $valor ? $fecha : null;
+    }
+
     /** @return array{0:Carbon,1:Carbon} */
-    private function rango(string $rango): array
+    private function preset(string $rango): array
     {
         // "Hoy" es el día operativo del turno abierto, no la fecha del reloj.
         $hoy = CashSession::actual()?->opened_at->copy()->startOfDay() ?? Carbon::today();

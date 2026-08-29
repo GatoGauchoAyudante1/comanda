@@ -104,13 +104,15 @@
             flex: none;
             width: 68px; height: 68px;
             border-radius: var(--r-sm);
-            object-fit: cover;
-            background: var(--panel-2);
+            object-fit: contain;
+            background: #fff;
             border: 1px solid var(--line);
         }
 
         .pub-item .txt { flex: 1; min-width: 0; }
         .pub-item .nm { font-weight: 500; }
+        /* La descripción se lee entera: es el motivo por el que está. */
+        .pub-item .ds { font-size: 13.5px; color: var(--txt-2); margin-top: 3px; line-height: 1.4; }
         .pub-item .vr { font-size: 13px; color: var(--txt-3); margin-top: 3px; }
 
         .pub-item .pr {
@@ -175,6 +177,9 @@
 
                             <div class="txt">
                                 <div class="nm">{{ $p->name }}</div>
+                                @if ($p->description)
+                                    <div class="ds">{{ $p->description }}</div>
+                                @endif
                                 @if ($p->variants->isNotEmpty())
                                     {{-- Con variantes el precio de arriba es el de la base:
                                          el detalle de cada tamaño va acá. --}}

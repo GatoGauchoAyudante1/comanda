@@ -91,6 +91,7 @@
                                 $json = json_encode([
                                     'id'              => $p->id,
                                     'name'            => $p->name,
+                                    'description'     => $p->description,
                                     'category_id'     => $p->category_id,
                                     'price'           => $p->price / 100,
                                     'goes_to_kitchen' => (bool) $p->goes_to_kitchen,
@@ -119,6 +120,13 @@
                                             @else
                                                 {{-- Sin permiso de dueño el nombre no se toca: sólo el precio. --}}
                                                 <span class="fw5">{{ $p->name }}</span>
+                                            @endif
+                                            {{-- Cortada: acá la fila tiene que seguir siendo una
+                                                 línea. El texto entero se lee en el diálogo. --}}
+                                            @if ($p->description)
+                                                <div class="fs12 t-mute mt4" title="{{ $p->description }}">
+                                                    {{ \Illuminate\Support\Str::limit($p->description, 80) }}
+                                                </div>
                                             @endif
                                             @if ($p->variants->isNotEmpty())
                                                 <div class="fs12 t-mute mt4">{{ $p->variants->pluck('name')->join(' · ') }}</div>
@@ -243,6 +251,19 @@
                     <div class="field">
                         <label for="p-name">Nombre</label>
                         <input id="p-name" class="inp" name="name" x-model="producto.name" required maxlength="120">
+                    </div>
+
+                    {{-- Opcional: va sólo donde el nombre no alcanza. Una carta
+                         con un renglón de texto abajo de cada cosa se lee peor
+                         que una donde lo tienen los tres platos que lo piden. --}}
+                    <div class="field mt12">
+                        <label for="p-desc">Descripción <span class="t-mute fw4">(opcional)</span></label>
+                        <textarea id="p-desc" class="inp" name="description" rows="2" maxlength="300"
+                                  x-model="producto.description"
+                                  placeholder="Con qué viene, cómo se sirve…"></textarea>
+                        <div class="fs13 t-mute mt4">
+                            Aparece en la carta pública, abajo del nombre.
+                        </div>
                     </div>
                 </div>
 
@@ -445,7 +466,7 @@ function carta() {
 
         abrirNuevo() {
             this.producto = {
-                id: null, name: '', price: '',
+                id: null, name: '', description: '', price: '',
                 category_id: {{ $actual?->id ?? $categorias->first()?->id ?? 'null' }},
                 goes_to_kitchen: {{ $actual?->goes_to_kitchen ? 'true' : 'false' }},
                 tracks_stock: true,
@@ -453,7 +474,9 @@ function carta() {
             };
         },
 
-        editar(p) { this.producto = { ...p, quitar_foto: false }; },
+        // description llega null en los que no la tienen: el textarea
+        // quiere '' para arrancar vacío y no con la palabra «null».
+        editar(p) { this.producto = { ...p, description: p.description ?? '', quitar_foto: false }; },
 
         // Vista previa local: se ve la foto elegida sin subir nada todavía.
         elegirFoto(e) {

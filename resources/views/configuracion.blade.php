@@ -23,6 +23,7 @@
             <a class="cat" href="#modulos">Módulos</a>
             <a class="cat" href="#cocina">Cocina</a>
             <a class="cat" href="#carta">Carta</a>
+            <a class="cat" href="#ticket">Ticket</a>
             @if (Negocio::modulo('salon') || Negocio::modulo('pool'))
                 <a class="cat" href="#mesas">Mesas</a>
             @endif
@@ -278,6 +279,85 @@
                         <div class="ds">
                             Al prenderla queda publicada en <b class="t-white">{{ $cartaUrl }}</b>
                             y aparece el código QR para imprimir y pegar en las mesas.
+                        </div>
+                    </div>
+
+                @endif
+            </div>
+
+            {{-- ============ ticket ============ --}}
+            <div class="card mt16" id="ticket">
+                <div class="sec">
+                    Ticket
+                    <span class="meta">Qué se lee en el comprobante que se entrega</span>
+                </div>
+
+                <p class="t-dim fs14 mb16">
+                    De fábrica el ticket sale con el <b class="t-white">mismo detalle que la comanda</b>:
+                    cada consumo con su importe. Prendiendo esto, al cobrar aparece la opción de
+                    reemplazar esa lista por un texto —«Almuerzo», «Consumos mesa»— antes de imprimir.
+                    Lo piden los clientes que rinden gastos: necesitan el comprobante,
+                    pero no que en la empresa se lea qué consumieron.
+                </p>
+
+                <div class="row">
+                    <div class="grow">
+                        <div class="nm">Poder cambiar el detalle antes de imprimir</div>
+                        <div class="sb">
+                            @if ($ticketDetalle)
+                                <span class="t-green">activado</span> · el cajero elige el texto en el ticket
+                            @else
+                                <span class="t-mute">apagado</span> · el ticket sale siempre con el detalle completo
+                            @endif
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ route('configuracion.ticket') }}">
+                        @csrf
+                        <button type="submit" class="sw {{ $ticketDetalle ? 'is-on' : '' }}"
+                                style="border:none;cursor:pointer"></button>
+                    </form>
+                </div>
+
+                @if ($ticketDetalle)
+
+                    <form class="mt16" method="POST" action="{{ route('configuracion.ticket.textos') }}">
+                        @csrf
+                        <div class="field">
+                            <label for="ticket-textos">Textos frecuentes</label>
+                            <textarea id="ticket-textos" class="inp" name="textos" rows="5"
+                                      style="resize:vertical;font-family:inherit"
+                                      placeholder="Consumos mesa&#10;Almuerzo&#10;Cena">{{ implode(PHP_EOL, $ticketPlantillas) }}</textarea>
+                            <span class="fs13 t-mute">
+                                Uno por línea, hasta diez. Aparecen como botones en el ticket para
+                                elegirlos de un toque; el cajero igual puede escribir otro.
+                                Si los borrás todos, lo escribe siempre a mano.
+                            </span>
+                        </div>
+                        <button class="btn btn-primary mt12" type="submit">Guardar</button>
+                    </form>
+
+                    <div class="notice notice-amber mt16">
+                        <span class="dot dot-amber"></span>
+                        <div>
+                            <div class="tt">El importe no se toca</div>
+                            <div class="ds">
+                                Cambia lo que se lee en el papel, nada más: el total, la forma de pago,
+                                el consumo cargado, la caja y los reportes quedan igual. Cada ticket
+                                que sale con otro detalle queda en el
+                                <a class="t-green" href="{{ route('historial') }}">historial</a>,
+                                con quién lo hizo y a qué hora.
+                            </div>
+                        </div>
+                    </div>
+
+                @else
+
+                    <div class="notice mt16">
+                        <span class="dot dot-mute"></span>
+                        <div class="ds">
+                            Apagado no cambia nada de lo que ya funciona: al cobrar, el ticket
+                            se imprime solo, igual que hoy.
                         </div>
                     </div>
 
