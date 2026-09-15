@@ -1,0 +1,5 @@
+# Config propia de cada máquina / secretos
+config.local.sh
+
+# Backups descargados
+backups/

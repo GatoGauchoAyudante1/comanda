@@ -1,0 +1,61 @@
+# ------------------------------------------------------------------------------
+# .env de PRODUCCIÓN — {{DOMINIO}}
+# Generado por deploy/setup.sh. Se crea UNA sola vez: los deploys siguientes
+# no lo tocan, así que los cambios que hagas acá sobreviven.
+# ------------------------------------------------------------------------------
+
+APP_NAME="{{APP_NAME}}"
+APP_ENV=production
+APP_KEY={{APP_KEY}}
+APP_DEBUG={{APP_DEBUG}}
+APP_URL={{APP_URL}}
+
+APP_LOCALE={{APP_LOCALE}}
+APP_FALLBACK_LOCALE={{APP_LOCALE}}
+APP_FAKER_LOCALE=es_AR
+APP_TIMEZONE={{APP_TIMEZONE}}
+
+APP_MAINTENANCE_DRIVER=file
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stack
+LOG_STACK=daily
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL={{LOG_LEVEL}}
+LOG_DAILY_DAYS=14
+
+DB_CONNECTION=mysql
+DB_HOST={{DB_HOST}}
+DB_PORT={{DB_PORT}}
+DB_DATABASE={{DB_NAME}}
+DB_USERNAME={{DB_USER}}
+DB_PASSWORD="{{DB_PASSWORD}}"
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+SESSION_SECURE_COOKIE={{SESSION_SECURE_COOKIE}}
+SESSION_SAME_SITE=lax
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
+CACHE_STORE=database
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="no-responder@{{DOMINIO}}"
+MAIL_FROM_NAME="${APP_NAME}"
+
+VITE_APP_NAME="${APP_NAME}"
