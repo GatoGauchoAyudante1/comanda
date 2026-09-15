@@ -149,6 +149,9 @@
             <div class="bajada">{{ $mensaje }}</div>
         @endif
         <div class="linea"></div>
+        @if (\App\Support\Negocio::modulo('pedidos_online'))
+            <a class="btn btn-primary mt16" href="{{ route('pedido-online') }}">Hacer un pedido</a>
+        @endif
     </header>
 
     @if ($categorias->isEmpty())

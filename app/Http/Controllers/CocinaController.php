@@ -26,8 +26,11 @@ class CocinaController extends Controller
                 'tableSession.table',
                 'delivery',
             ])
-            ->orderBy('created_at')
-            ->get();
+            ->get()
+            // Por espera y no por alta: una mesa se abre mucho antes de pedir
+            // la comida. Ver Order::esperaDesde().
+            ->sortBy(fn (Order $o) => $o->esperaDesde()->getTimestamp())
+            ->values();
 
         return view('cocina', [
             'comandas'    => $comandas,

@@ -5,14 +5,64 @@
 @endphp
 
 @section('titulo', 'Pedidos')
-@section('alpine', '{ asignando: null, detalle: null, pagando: null, entregando: null }')
+{{-- Sin comillas dobles: esto termina adentro del atributo x-data del layout. --}}
+@section('alpine')
+{
+    asignando: null, detalle: null, pagando: null, entregando: null,
+
+    {{-- Viaja en la URL para sobrevivir al refresco automático. --}}
+    q: {{ Js::from((string) request('q', '')) }},
+
+    plano(t) { return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); },
+
+    {{-- Todas las palabras tienen que estar, en cualquier orden:
+         «juan san martin» encuentra a Juan en San Martín 1234. --}}
+    coincide(texto) {
+        const partes = this.plano(this.q).split(/\s+/).filter(Boolean);
+        const heno   = this.plano(texto);
+        return partes.every(p => heno.includes(p));
+    },
+
+    {{-- No se recarga solo: recargar sube la página y te saca del pedido que
+         estabas mirando. Se pregunta si cambió algo y se avisa en el botón. --}}
+    firma: {{ Js::from($firma) }},
+    hayCambios: false,
+
+    vigilar() {
+        setInterval(async () => {
+            if (document.hidden || this.hayCambios) return;
+            try {
+                const res = await fetch({{ Js::from(route('pedidos.firma')) }}, { headers: { Accept: 'application/json' } });
+                if (res.ok) this.hayCambios = (await res.json()).firma !== this.firma;
+            } catch (e) {}
+        }, 15000);
+    },
+
+    buscar() {
+        const url = new URL(location.href);
+        this.q.trim() ? url.searchParams.set('q', this.q.trim()) : url.searchParams.delete('q');
+        history.replaceState(null, '', url);
+    },
+}
+@endsection
 
 @section('topbar')
     <div>
         <h1>Pedidos</h1>
-        <div class="sub">{{ $activos }} {{ $activos === 1 ? 'en curso' : 'en curso' }} · turno actual</div>
+        <div class="sub">{{ $activos }} en curso · turno actual</div>
     </div>
     <div class="topbar-actions">
+        <input class="inp" type="search" x-model="q" @input="buscar()"
+               @keydown.escape="q = ''; buscar()"
+               placeholder="Buscar: nombre, teléfono, dirección, #número"
+               aria-label="Buscar pedido" autocomplete="off"
+               style="width:min(320px, 46vw)">
+        {{-- Recarga manteniendo la búsqueda, que ya está en la URL. --}}
+        <button type="button" class="btn" :class="hayCambios && 'btn-primary'"
+                @click="location.reload()"
+                :title="hayCambios ? 'Hay pedidos nuevos o que cambiaron' : 'Volver a cargar los pedidos'">
+            <span x-text="hayCambios ? '● Hay cambios · Actualizar' : 'Actualizar'">Actualizar</span>
+        </button>
         <a class="btn hide-mobile" href="{{ route('cocina') }}">Ver cocina</a>
         @if (\App\Support\Negocio::modulo('delivery'))
             <a class="btn btn-primary" href="{{ route('pedidos.nuevo') }}">+ Nuevo pedido</a>
@@ -21,23 +71,22 @@
 @endsection
 
 @section('contenido')
-{{-- Se refresca solo cada 15 s, salvo que haya un diálogo abierto (D-18). --}}
-<div x-init="setInterval(() => {
-        if (!document.hidden && !asignando && !detalle && !pagando && !entregando) location.reload()
-     }, 15000)">
+{{-- Ver vigilar(): avisa que hay cambios, no recarga (D-18). --}}
+<div x-init="vigilar()">
 
     <div class="kanban" style="grid-template-columns:repeat(3,1fr)">
         @foreach ($columnas as $clave => $columna)
-            <div>
+            <div x-data="{ get visibles() { q; return [...$el.querySelectorAll('[data-buscar]')].filter(c => coincide(c.dataset.buscar)).length } }">
                 <div class="kcol-hd">
                     <span class="t">{{ $columna['titulo'] }}</span>
-                    <span class="badge">{{ $columna['pedidos']->count() }}</span>
+                    <span class="badge" x-text="q.trim() ? visibles : {{ $columna['pedidos']->count() }}">{{ $columna['pedidos']->count() }}</span>
                 </div>
 
                 <div class="kcol">
                     @forelse ($columna['pedidos'] as $pedido)
                         @php
-                            $minutos  = (int) $pedido->created_at->diffInMinutes(now());
+                            // Mismo reloj que ordena la columna: ver Order::esperaDesde().
+                            $minutos  = (int) $pedido->esperaDesde($columna['estados'])->diffInMinutes(now());
                             $urgencia = $minutos >= 30 ? 'late' : ($minutos >= 15 ? 'warn' : 'ok');
                             $entrega  = $pedido->delivery;
                             $esMesa   = $pedido->esMesa() || $pedido->type === 'mostrador';
@@ -48,9 +97,24 @@
                             if ($proximo === 'ready' && ! $puedeMarcarListo) {
                                 $proximo = null;
                             }
+
+                            // Lo que encuentra el buscador. El teléfono va también
+                            // sólo con dígitos: «1123456789» encuentra «11 2345-6789».
+                            $telefono = $entrega?->telefonoCliente();
+                            $buscar   = implode(' ', array_filter([
+                                '#' . $pedido->number,
+                                $entrega?->nombreCliente(),
+                                $telefono,
+                                $telefono ? preg_replace('/\D/', '', $telefono) : null,
+                                $entrega?->direccionCompleta(),
+                                $entrega?->zone?->name,
+                                $entrega?->driver?->name,
+                                $pedido->tableSession?->table?->name,
+                                ['delivery' => 'delivery', 'retiro' => 'retiro retira'][$pedido->type] ?? null,
+                            ]));
                         @endphp
 
-                        <div class="kcard {{ $urgencia }}">
+                        <div class="kcard {{ $urgencia }}" data-buscar="{{ $buscar }}" x-show="coincide($el.dataset.buscar)">
 
                             <div class="between">
                                 <span class="fw6 fs17">#{{ $pedido->number }}</span>
@@ -60,8 +124,8 @@
                             {{-- De dónde viene y a dónde va --}}
                             <x-origen :orden="$pedido" class="mt8" />
 
-                            @if ($entrega?->customer?->name)
-                                <div class="fs13 t-dim mt4">{{ $entrega->customer->name }}</div>
+                            @if ($entrega?->nombreCliente())
+                                <div class="fs13 t-dim mt4">{{ $entrega->nombreCliente() }}</div>
                             @endif
 
                             <div class="flex g8 mt12 wrap">
@@ -149,12 +213,12 @@
                                     <div class="modal-bd">
                                         <x-origen :orden="$pedido" class="mb16" />
 
-                                        @if ($entrega?->address)
+                                        @if ($entrega?->direccionCompleta())
                                             <div class="card card-tight mb16">
-                                                <div class="fw6">{{ $entrega->address->completa() }}</div>
+                                                <div class="fw6">{{ $entrega->direccionCompleta() }}</div>
                                                 <div class="fs13 t-mute mt4">
-                                                    {{ $entrega->customer?->name }}
-                                                    @if ($entrega->customer?->phone) · {{ $entrega->customer->phone }} @endif
+                                                    {{ $entrega->nombreCliente() }}
+                                                    @if ($entrega->telefonoCliente()) · {{ $entrega->telefonoCliente() }} @endif
                                                 </div>
                                             </div>
                                         @endif
@@ -376,6 +440,12 @@
                             <span class="fs13 t-mute">Sin pedidos</span>
                         </div>
                     @endforelse
+
+                    @if ($columna['pedidos']->isNotEmpty())
+                        <div class="tcard tcard--free" style="min-height:90px" x-show="q.trim() && ! visibles" x-cloak>
+                            <span class="fs13 t-mute">Nada coincide acá</span>
+                        </div>
+                    @endif
                 </div>
             </div>
         @endforeach

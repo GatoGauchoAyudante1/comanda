@@ -8,6 +8,23 @@
     <div class="stat"><div class="label">Sin confirmar</div><div class="val">{{ $pedidos->count() }}</div><div class="foot">Requieren respuesta por WhatsApp</div></div>
 </div>
 
+{{-- Sin esto la pantalla no dice de dónde salen los pedidos. --}}
+<div class="notice mb16" x-data>
+    <span class="dot dot-mute"></span>
+    <div class="grow">
+        <div class="tt">Así piden los clientes</div>
+        <div class="ds">
+            Entran desde el celular a
+            <a class="t-green" href="{{ $link }}" target="_blank" rel="noopener">{{ $link }}</a>,
+            sin usuario ni contraseña. Cada pedido aparece acá hasta que lo confirmes o lo rechaces.
+            <button class="btn btn-sm" type="button" style="margin-left:6px"
+                    @click="navigator.clipboard.writeText('{{ $link }}'); $el.textContent = 'Copiado'">
+                Copiar link
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="grid3">
     @forelse($pedidos as $pedido)
         <a class="card" href="{{ route('pedidos-online.mostrar', $pedido) }}" style="display:block">

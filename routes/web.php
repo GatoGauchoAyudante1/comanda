@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CajaController;
+use App\Http\Controllers\Dev\DevPanelController;
 use App\Http\Controllers\CartaController;
 use App\Http\Controllers\CartaPublicaController;
 use App\Http\Controllers\CobroController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\MesaController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\SesionController;
 use App\Http\Controllers\TicketController;
+use App\Services\LicenseService;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -46,11 +48,16 @@ Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
 */
 Route::get('/menu', CartaPublicaController::class)->name('carta.publica');
 
-// Carta con carrito y alta de pedidos, también sin sesión.
-Route::get('/pedido-online', [PedidoOnlineController::class, 'carta'])->name('pedido-online');
-Route::post('/pedido-online/checkout', [PedidoOnlineController::class, 'checkout'])->name('pedido-online.checkout');
-Route::post('/pedido-online', [PedidoOnlineController::class, 'guardar'])
-    ->middleware('throttle:10,1')->name('pedido-online.guardar');
+// Carta con carrito y alta de pedidos, también sin sesión. Existe mientras el
+// módulo esté contratado y prendido (Ajustes → Módulos).
+Route::middleware('modulo:pedidos_online')->group(function () {
+    Route::get('/pedido-online', [PedidoOnlineController::class, 'carta'])->name('pedido-online');
+    Route::post('/pedido-online/checkout', [PedidoOnlineController::class, 'checkout'])->name('pedido-online.checkout');
+    Route::post('/pedido-online', [PedidoOnlineController::class, 'guardar'])
+        ->middleware('throttle:10,1')->name('pedido-online.guardar');
+});
+// Sin módulo a propósito: si lo apagan con pedidos en camino, el cliente
+// igual tiene que poder ver lo que mandó.
 Route::get('/pedido-online/recibido/{uuid}', [PedidoOnlineController::class, 'recibido'])
     ->name('pedido-online.recibido');
 
@@ -85,8 +92,8 @@ Route::middleware('auth')->group(function () {
     });
 
     // Los pedidos hechos por clientes requieren una decisión del cajero o dueño.
-    Route::middleware('rol:cajero')->group(function () {
-        Route::get('/pedidos-online', [PedidoOnlineController::class, 'index'])->name('pedidos-online');
+    Route::middleware(['rol:cajero', 'modulo:pedidos_online'])->group(function () {
+        Route::get('/pedidos-online',[PedidoOnlineController::class, 'index'])->name('pedidos-online');
         Route::get('/pedidos-online/{pedidoOnline}', [PedidoOnlineController::class, 'mostrar'])->name('pedidos-online.mostrar');
         Route::post('/pedidos-online/{pedidoOnline}/confirmar', [PedidoOnlineController::class, 'confirmar'])->name('pedidos-online.confirmar');
         Route::post('/pedidos-online/{pedidoOnline}/rechazar', [PedidoOnlineController::class, 'rechazar'])->name('pedidos-online.rechazar');
@@ -112,7 +119,8 @@ Route::middleware('auth')->group(function () {
     // Delivery
     Route::middleware('rol:cajero,mozo')->group(function () {
         Route::get('/pedidos', [PedidoController::class, 'tablero'])->name('pedidos');
-        Route::get('/pedidos/nuevo', [PedidoController::class, 'nuevo'])->name('pedidos.nuevo');
+        Route::get('/pedidos/firma', [PedidoController::class, 'firmaTablero'])->name('pedidos.firma');
+        Route::get('/pedidos/nuevo',[PedidoController::class, 'nuevo'])->name('pedidos.nuevo');
         Route::get('/pedidos/cliente', [PedidoController::class, 'buscarCliente'])->name('pedidos.cliente');
         Route::post('/pedidos', [PedidoController::class, 'guardar'])->name('pedidos.guardar');
         Route::post('/pedidos/{orden}/avanzar', [PedidoController::class, 'avanzar'])->name('pedidos.avanzar');
@@ -196,7 +204,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/ajustes', [ConfiguracionController::class, 'index'])->name('configuracion');
         Route::post('/ajustes/negocio', [ConfiguracionController::class, 'guardarNegocio'])->name('configuracion.negocio');
         Route::post('/ajustes/modulo', [ConfiguracionController::class, 'alternarModulo'])->name('configuracion.modulo');
-        Route::post('/ajustes/modulo/restablecer', [ConfiguracionController::class, 'restablecerModulo'])->name('configuracion.modulo.restablecer');
 
         Route::post('/ajustes/cocina', [ConfiguracionController::class, 'guardarCocina'])->name('configuracion.cocina');
 
@@ -220,5 +227,40 @@ Route::middleware('auth')->group(function () {
         Route::post('/ajustes/usuarios/{usuario}', [ConfiguracionController::class, 'guardarUsuario'])->name('configuracion.usuario.actualizar');
         Route::post('/ajustes/usuarios/{usuario}/alternar', [ConfiguracionController::class, 'alternarUsuario'])->name('configuracion.usuario.alternar');
         Route::delete('/ajustes/usuarios/{usuario}', [ConfiguracionController::class, 'eliminarUsuario'])->name('configuracion.usuario.eliminar');
+    });
+
+    /*
+    | Estado del abono del sistema, lo que alimenta el banner del panel.
+    | Es una deuda del titular con quien le hizo el sistema, no del local:
+    | el cajero y el mozo no tienen por qué enterarse, así que acá el dueño
+    | es el único que entra (y por eso no alcanza con `rol:dueno`, que deja
+    | pasar al dueño pero está pensado para sumar otros roles).
+    */
+    Route::get('/licencia/estado', function (LicenseService $licencia) {
+        abort_unless(auth()->user()?->esDueno(), 403);
+
+        return response()->json($licencia->status());
+    })->name('licencia.estado');
+});
+
+/*
+| Panel del desarrollador: control del abono mensual del sistema.
+|
+| Fuera del `auth` de la app a propósito (ver App\Http\Middleware\DevPanelKey):
+| no lleva enlace en ningún menú y se entra escribiendo la URL con la clave
+| que está en el .env del servidor.
+*/
+Route::prefix('dev-panel')->group(function () {
+    Route::get('/', [DevPanelController::class, 'index'])->name('dev-panel.index');
+    Route::post('/login', [DevPanelController::class, 'login'])
+        ->middleware('throttle:10,1')->name('dev-panel.login');
+    Route::post('/logout', [DevPanelController::class, 'logout'])->name('dev-panel.logout');
+
+    Route::middleware('dev.key')->group(function () {
+        Route::post('/generate', [DevPanelController::class, 'generate'])->name('dev-panel.generate');
+        Route::put('/settings', [DevPanelController::class, 'updateSettings'])->name('dev-panel.settings');
+        Route::put('/charges/{charge}', [DevPanelController::class, 'updateCharge'])->name('dev-panel.charges.update');
+        Route::post('/charges/{charge}/pay', [DevPanelController::class, 'pay'])->name('dev-panel.charges.pay');
+        Route::post('/charges/{charge}/unpay', [DevPanelController::class, 'unpay'])->name('dev-panel.charges.unpay');
     });
 });

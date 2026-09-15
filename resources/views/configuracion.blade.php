@@ -23,6 +23,9 @@
             <a class="cat" href="#modulos">Módulos</a>
             <a class="cat" href="#cocina">Cocina</a>
             <a class="cat" href="#carta">Carta</a>
+            @if (Negocio::moduloContratado('pedidos_online'))
+                <a class="cat" href="#pedidos-online">Pedidos online</a>
+            @endif
             <a class="cat" href="#ticket">Ticket</a>
             @if (Negocio::modulo('salon') || Negocio::modulo('pool'))
                 <a class="cat" href="#mesas">Mesas</a>
@@ -78,47 +81,44 @@
 
                 <p class="t-dim fs14 mb16">
                     Es lo que diferencia un bar con pool de un negocio de delivery.
-                    El valor inicial viene del <b class="t-white">.env</b>; si lo cambiás acá,
-                    manda lo que elijas hasta que lo restablezcas.
+                    Podés prender o apagar los módulos incluidos en tu plan; los demás
+                    aparecen bloqueados hasta que se contraten.
                 </p>
 
                 @foreach ($modulos as $clave => [$nombre, $detalle])
                     @php
-                        $activo       = Negocio::modulo($clave);
-                        $personalizado = Negocio::moduloEsPersonalizado($clave);
-                        $env          = Negocio::moduloSegunEnv($clave);
+                        $contratado = Negocio::moduloContratado($clave);
+                        $prendido   = $contratado && Negocio::moduloPrendido($clave);
+                        $requiere   = Negocio::REQUIERE[$clave] ?? null;
+                        // Prendido pero sin aquello de lo que depende: el switch
+                        // queda en verde y se avisa por qué igual no se ve.
+                        $trabado    = $prendido && ! Negocio::modulo($clave);
                     @endphp
 
-                    <div class="row">
+                    <div class="row" @style(['opacity:.55' => ! $contratado])>
                         <div class="grow">
                             <div class="nm">{{ $nombre }}</div>
                             <div class="sb">
                                 {{ $detalle }}
-                                @if ($personalizado)
-                                    · <span class="t-amber">cambiado acá</span>
-                                    <span class="t-mute">(el .env dice {{ $env ? 'activado' : 'desactivado' }})</span>
-                                @else
-                                    · <span class="t-mute">según el .env</span>
+                                @if (! $contratado)
+                                    · <span class="t-mute">no incluido en tu plan</span>
+                                @elseif ($trabado)
+                                    · <span class="t-amber">necesita «{{ $modulos[$requiere][0] }}» activado</span>
                                 @endif
                             </div>
                         </div>
 
-                        @if ($personalizado)
-                            <form method="POST" action="{{ route('configuracion.modulo.restablecer') }}">
+                        @if ($contratado)
+                            <form method="POST" action="{{ route('configuracion.modulo') }}">
                                 @csrf
                                 <input type="hidden" name="modulo" value="{{ $clave }}">
-                                <button class="btn btn-sm" type="submit" title="Volver al valor del .env">
-                                    Usar el .env
-                                </button>
+                                <button type="submit" class="sw {{ $prendido ? 'is-on' : '' }}"
+                                        style="border:none;cursor:pointer"
+                                        title="{{ $prendido ? 'Desactivar' : 'Activar' }}"></button>
                             </form>
+                        @else
+                            <span class="chip chip-line">Bloqueado</span>
                         @endif
-
-                        <form method="POST" action="{{ route('configuracion.modulo') }}">
-                            @csrf
-                            <input type="hidden" name="modulo" value="{{ $clave }}">
-                            <button type="submit" class="sw {{ $activo ? 'is-on' : '' }}"
-                                    style="border:none;cursor:pointer"></button>
-                        </form>
                     </div>
                 @endforeach
 
@@ -284,6 +284,80 @@
 
                 @endif
             </div>
+
+            {{-- ============ pedidos online ============ --}}
+            @if (Negocio::moduloContratado('pedidos_online'))
+                <div class="card mt16" id="pedidos-online">
+                    <div class="sec">
+                        Pedidos online
+                        <span class="meta">El link para que los clientes pidan</span>
+                    </div>
+
+                    <p class="t-dim fs14 mb16">
+                        El cliente entra al link desde el celular, <b class="t-white">sin usuario ni contraseña</b>,
+                        arma el pedido con la carta y elige delivery o retiro. El pedido llega a
+                        <b class="t-white">Pedidos online</b> en el menú; el cajero lo confirma o lo rechaza
+                        y la respuesta sale por WhatsApp. Recién al confirmarlo pasa a cocina.
+                    </p>
+
+                    @if (Negocio::modulo('pedidos_online'))
+
+                        <div class="flex g18 wrap" style="align-items:flex-start">
+                            <div class="grow" style="min-width:260px">
+                                <div class="opt-lbl">Link para los clientes</div>
+
+                                <div class="flex g8 wrap mt4">
+                                    <a class="chip chip-green" href="{{ $pedidoUrl }}" target="_blank" rel="noopener">
+                                        {{ $pedidoUrl }}
+                                    </a>
+                                    <button class="btn btn-sm" type="button"
+                                            @click="navigator.clipboard.writeText('{{ $pedidoUrl }}');
+                                                    $el.textContent = 'Copiado'">
+                                        Copiar
+                                    </button>
+                                </div>
+
+                                <div class="notice mt16">
+                                    <span class="dot dot-mute"></span>
+                                    <div class="ds">
+                                        Ponelo en el estado de WhatsApp, en Instagram o en la respuesta
+                                        automática. Usa los mismos productos, precios y fotos de la
+                                        <a class="t-green" href="{{ route('carta') }}">carta</a>, y el
+                                        costo de envío de las zonas cargadas abajo.
+                                        @if ($cartaPublica)
+                                            La carta pública también muestra un botón «Hacer un pedido».
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="text-align:center">
+                                <div class="opt-lbl">Código QR</div>
+                                <div style="background:#fff;padding:10px;border-radius:var(--r-sm);line-height:0;display:inline-block">
+                                    {!! $pedidoQr !!}
+                                </div>
+                            </div>
+                        </div>
+
+                    @else
+
+                        <div class="notice notice-amber">
+                            <span class="dot dot-amber"></span>
+                            <div class="ds">
+                                @if (! Negocio::moduloPrendido('pedidos_online'))
+                                    Está apagado: prendelo en <a class="t-green" href="#modulos">Módulos</a>
+                                    y acá aparece el link para compartir.
+                                @else
+                                    Necesita el módulo «Delivery y retiro» activado, porque los pedidos
+                                    confirmados entran a su tablero. Prendelo en
+                                    <a class="t-green" href="#modulos">Módulos</a>.
+                                @endif
+                            </div>
+                        </div>
+
+                    @endif
+                </div>
+            @endif
 
             {{-- ============ ticket ============ --}}
             <div class="card mt16" id="ticket">

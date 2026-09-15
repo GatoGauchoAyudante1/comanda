@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'rol' => \App\Http\Middleware\VerificarRol::class,
             // Permiso delegable, no rol: ver docs/06-reglas-negocio.md · R-39.
             'precios' => \App\Http\Middleware\VerificarPrecios::class,
+            // Módulo contratado y prendido: ver docs/02-decisiones.md · D-04.
+            'modulo' => \App\Http\Middleware\VerificarModulo::class,
+            // Panel del desarrollador: clave del .env, ajeno al guard de la app.
+            'dev.key' => \App\Http\Middleware\DevPanelKey::class,
         ]);
 
         // Cada rol entra a lo suyo. Ver docs/06-reglas-negocio.md R-27 a R-29.

@@ -17,7 +17,7 @@
             'titulo' => 'DELIVERY',
             'detalle' => 'Se lo llevamos'
                 . ($entrega?->zone ? ' · ' . $entrega->zone->name : '')
-                . ($entrega?->address ? ' · ' . $entrega->address->street : ''),
+                . ($entrega?->street ? ' · ' . $entrega->street : ''),
         ],
         'retiro' => [
             'chip'   => 'chip-amber',

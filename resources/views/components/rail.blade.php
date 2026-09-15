@@ -16,7 +16,7 @@
     $items = collect([
         ['id' => 'mesas',    'label' => 'Mesas',    'ruta' => 'panel',    'roles' => ['cajero', 'mozo'],   'modulo' => $modulos['salon'] || $modulos['pool']],
         ['id' => 'pedidos',  'label' => 'Pedidos',  'ruta' => 'pedidos',  'roles' => ['cajero', 'mozo'],   'modulo' => $modulos['delivery']],
-        ['id' => 'online',   'label' => 'Pedidos online', 'ruta' => 'pedidos-online', 'roles' => ['cajero'], 'modulo' => $modulos['delivery']],
+        ['id' => 'online',   'label' => 'Pedidos online', 'ruta' => 'pedidos-online', 'roles' => ['cajero'], 'modulo' => $modulos['pedidos_online']],
         // Los roles de acá deben coincidir con el middleware de routes/web.php.
         // Cajero y mozo pueden entrar a la cocina, así que también la ven.
         ['id' => 'cocina',   'label' => 'Cocina',   'ruta' => 'cocina',   'roles' => ['cocina', 'cajero', 'mozo'], 'modulo' => true],

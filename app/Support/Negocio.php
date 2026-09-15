@@ -5,13 +5,14 @@ namespace App\Support;
 use App\Models\Setting;
 
 /**
- * La configuración del negocio, con dos niveles y una precedencia clara.
+ * La configuración del negocio, con dos niveles.
  *
  *   1. Lo que el dueño guarda desde la pantalla de Configuración (tabla settings)
- *   2. Si ahí no hay nada, lo que dice el .env (config/negocio.php)
+ *   2. Lo que dice el .env (config/negocio.php)
  *
- * El .env define cómo nace la instalación; la pantalla permite cambiarla sin
- * entrar por SSH. "Volver al valor del .env" borra la fila y el .env manda otra vez.
+ * Para los datos (nombre, punto de venta) gana la pantalla y el .env es el
+ * respaldo. Para los módulos el .env es el techo: dice qué está contratado y
+ * la pantalla sólo prende o apaga dentro de eso.
  *
  * Ver docs/02-decisiones.md · D-02 y D-04.
  */
@@ -96,27 +97,42 @@ class Negocio
         return is_array($lista) ? array_values($lista) : self::DETALLES_TICKET;
     }
 
-    /** ¿Está activo un módulo? salon | pool | delivery | stock */
+    public const MODULOS = ['salon', 'pool', 'delivery', 'stock', 'pedidos_online'];
+
+    /** Módulos que no funcionan sin otro: el pedido online termina en el tablero de delivery. */
+    public const REQUIERE = ['pedidos_online' => 'delivery'];
+
+    /**
+     * ¿Está activo un módulo?
+     *
+     * Tienen que darse las tres cosas: que esté contratado (.env), que el
+     * dueño no lo haya apagado (settings) y que esté activo aquello de lo
+     * que depende. Ver docs/02-decisiones.md · D-04.
+     */
     public static function modulo(string $nombre): bool
     {
-        $guardado = self::settings()["modules.{$nombre}"] ?? null;
-
-        if ($guardado !== null) {
-            return filter_var($guardado, FILTER_VALIDATE_BOOL);
+        if (! self::moduloContratado($nombre) || ! self::moduloPrendido($nombre)) {
+            return false;
         }
 
+        $requiere = self::REQUIERE[$nombre] ?? null;
+
+        return $requiere === null || self::modulo($requiere);
+    }
+
+    /** Lo que habilita el .env: sin esto el interruptor de Ajustes no existe. */
+    public static function moduloContratado(string $nombre): bool
+    {
         return (bool) config("negocio.modulos.{$nombre}", false);
     }
 
-    /** Si un módulo fue tocado desde la pantalla o sigue viniendo del .env. */
-    public static function moduloEsPersonalizado(string $nombre): bool
+    /**
+     * La posición del interruptor de Ajustes, sin mirar contrato ni dependencias.
+     * Sin fila, prendido: contratar un módulo es para usarlo.
+     */
+    public static function moduloPrendido(string $nombre): bool
     {
-        return array_key_exists("modules.{$nombre}", self::settings());
-    }
-
-    public static function moduloSegunEnv(string $nombre): bool
-    {
-        return (bool) config("negocio.modulos.{$nombre}", false);
+        return filter_var(self::settings()["modules.{$nombre}"] ?? true, FILTER_VALIDATE_BOOL);
     }
 
     /**
@@ -155,8 +171,6 @@ class Negocio
     /** @return array<string, bool> */
     public static function modulos(): array
     {
-        $nombres = ['salon', 'pool', 'delivery', 'stock'];
-
-        return array_combine($nombres, array_map([self::class, 'modulo'], $nombres));
+        return array_combine(self::MODULOS, array_map([self::class, 'modulo'], self::MODULOS));
     }
 }

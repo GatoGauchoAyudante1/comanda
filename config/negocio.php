@@ -18,14 +18,17 @@ return [
     'nombre' => env('NEGOCIO_NOMBRE', 'Mi negocio'),
 
     /*
-    | Módulos activos. La barra lateral, el panel de atención y los reportes
-    | se arman según esto. Ver docs/02-decisiones.md · D-04.
+    | Módulos contratados. Es el techo: el dueño prende o apaga desde Ajustes
+    | sólo lo que figura acá en true, y lo que está en false no existe para él.
+    | Siempre se lee a través de App\Support\Negocio. Ver docs/02-decisiones.md · D-04.
     */
     'modulos' => [
-        'salon'    => env('NEGOCIO_MODULO_SALON', true),
-        'pool'     => env('NEGOCIO_MODULO_POOL', false),
-        'delivery' => env('NEGOCIO_MODULO_DELIVERY', false),
-        'stock'    => env('NEGOCIO_MODULO_STOCK', true),
+        'salon'          => env('NEGOCIO_MODULO_SALON', true),
+        'pool'           => env('NEGOCIO_MODULO_POOL', false),
+        'delivery'       => env('NEGOCIO_MODULO_DELIVERY', false),
+        'stock'          => env('NEGOCIO_MODULO_STOCK', true),
+        // Necesita delivery: el pedido confirmado entra al tablero de Pedidos.
+        'pedidos_online' => env('NEGOCIO_MODULO_PEDIDOS_ONLINE', false),
     ],
 
     /*

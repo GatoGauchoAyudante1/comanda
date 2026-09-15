@@ -26,10 +26,11 @@ use Illuminate\Validation\Rule;
 class ConfiguracionController extends Controller
 {
     private const MODULOS = [
-        'salon'    => ['Salón', 'Mesas comunes con consumo.'],
-        'pool'     => ['Mesas de pool', 'Cobro por tiempo, además del consumo.'],
-        'delivery' => ['Delivery y retiro', 'Pedidos, tablero, repartidores y rendición.'],
-        'stock'    => ['Stock e insumos', 'Recetas, descuento automático y conteo.'],
+        'salon'          => ['Salón', 'Mesas comunes con consumo.'],
+        'pool'           => ['Mesas de pool', 'Cobro por tiempo, además del consumo.'],
+        'delivery'       => ['Delivery y retiro', 'Pedidos, tablero, repartidores y rendición.'],
+        'stock'          => ['Stock e insumos', 'Recetas, descuento automático y conteo.'],
+        'pedidos_online' => ['Pedidos online', 'El cliente arma el pedido desde un link y el cajero lo confirma por WhatsApp.'],
     ];
 
     public function index(): View
@@ -52,6 +53,9 @@ class ConfiguracionController extends Controller
             // El QR sólo se dibuja si la carta está publicada: si el link
             // devuelve 404, mostrarlo sería invitar a imprimir un cartel roto.
             'cartaQr'          => Negocio::cartaPublica() ? Qr::svg(route('carta.publica'), 190) : null,
+            'pedidoUrl'        => route('pedido-online'),
+            // Mismo criterio que la carta: sin módulo activo el link da 404.
+            'pedidoQr'         => Negocio::modulo('pedidos_online') ? Qr::svg(route('pedido-online'), 190) : null,
         ]);
     }
 
@@ -253,35 +257,45 @@ class ConfiguracionController extends Controller
         return back()->with('ok', 'Marcan comandas listas: ' . implode(', ', $roles) . '.');
     }
 
+    /**
+     * Prender o apagar un módulo contratado.
+     *
+     * Lo no contratado no se puede prender ni forzando el POST: el .env es el
+     * techo (D-04). Queda en la bitácora porque cambia qué ve cada uno, y en
+     * pedidos online, qué ve alguien de afuera.
+     */
     public function alternarModulo(Request $request): RedirectResponse
     {
         $datos = $request->validate([
             'modulo' => ['required', Rule::in(array_keys(self::MODULOS))],
         ]);
 
-        $nuevo = ! Negocio::modulo($datos['modulo']);
+        $clave  = $datos['modulo'];
+        $nombre = self::MODULOS[$clave][0];
 
-        Setting::put("modules.{$datos['modulo']}", $nuevo ? '1' : '0', 'bool');
+        if (! Negocio::moduloContratado($clave)) {
+            return back()->with('error', "«{$nombre}» no está incluido en el plan de este sistema.");
+        }
+
+        $nuevo = ! Negocio::moduloPrendido($clave);
+
+        Setting::put("modules.{$clave}", $nuevo ? '1' : '0', 'bool');
         Negocio::olvidar();
 
-        $nombre = self::MODULOS[$datos['modulo']][0];
+        Bitacora::registrar(
+            'config.modulo',
+            ($nuevo ? 'Activó' : 'Desactivó') . " el módulo «{$nombre}»",
+            meta: ['modulo' => $clave],
+        );
+
+        $requiere = Negocio::REQUIERE[$clave] ?? null;
+
+        if ($nuevo && $requiere && ! Negocio::modulo($requiere)) {
+            return back()->with('ok', "«{$nombre}» activado, pero no va a funcionar hasta que prendas «"
+                . self::MODULOS[$requiere][0] . '».');
+        }
 
         return back()->with('ok', "«{$nombre}» " . ($nuevo ? 'activado' : 'desactivado') . '.');
-    }
-
-    /** Borra el valor guardado y deja que vuelva a mandar el .env. */
-    public function restablecerModulo(Request $request): RedirectResponse
-    {
-        $datos = $request->validate([
-            'modulo' => ['required', Rule::in(array_keys(self::MODULOS))],
-        ]);
-
-        Setting::where('key', "modules.{$datos['modulo']}")->delete();
-        Negocio::olvidar();
-
-        $valor = Negocio::moduloSegunEnv($datos['modulo']) ? 'activado' : 'desactivado';
-
-        return back()->with('ok', "Vuelve a mandar el .env: queda {$valor}.");
     }
 
     public function guardarTarifa(Request $request, ?TableRate $tarifa = null): RedirectResponse

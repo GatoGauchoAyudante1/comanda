@@ -34,44 +34,40 @@ class PedidoController extends Controller
      */
     public function tablero(Request $request, AvanzarPedido $avanzar): View
     {
-        $relaciones = [
+        [$paraLlevar, $enSalon] = $this->enCurso([
             'items.product', 'items.variant',
-            'delivery.customer', 'delivery.zone', 'delivery.driver',
+            'delivery.zone', 'delivery.driver',
             'tableSession.table', 'tableSession.user',
-        ];
-
-        $paraLlevar = Order::query()
-            ->whereIn('type', ['delivery', 'retiro'])
-            ->whereIn('status', ['open', 'kitchen', 'ready', 'on_route'])
-            ->with($relaciones)
-            ->orderBy('created_at')
-            ->get();
-
-        // Mesas y mostrador con algo pasando por cocina.
-        $enSalon = Order::query()
-            ->whereIn('type', ['mesa_pool', 'mesa_salon', 'mostrador'])
-            ->where('status', 'open')
-            ->whereHas('items', fn ($q) => $q->whereIn('status', ['kitchen', 'ready']))
-            ->with($relaciones)
-            ->orderBy('created_at')
-            ->get();
+        ]);
 
         $enCocina = $enSalon->filter(fn (Order $o) => $o->items->contains('status', 'kitchen'));
         $servir   = $enSalon->reject(fn (Order $o) => $o->items->contains('status', 'kitchen'));
 
+        // Cada columna mezcla delivery y mesas: se ordena ya mezclada, con el
+        // que más espera arriba. Ordenar cada lista por su lado y pegarlas
+        // dejaba una mesa demorada debajo de un delivery recién entrado.
+        // `estados`: qué ítems de una mesa cuentan para la espera en esa columna.
+        $porEspera = fn ($pedidos, array $estados) => $pedidos
+            ->sortBy(fn (Order $o) => $o->esperaDesde($estados)->getTimestamp())
+            ->values();
+
         return view('pedidos.tablero', [
+            'firma'    => $this->firma($paraLlevar->concat($enSalon)),
             'columnas' => [
                 'kitchen' => [
                     'titulo'  => 'En cocina',
-                    'pedidos' => $paraLlevar->whereIn('status', ['open', 'kitchen'])->concat($enCocina),
+                    'estados' => ['kitchen'],
+                    'pedidos' => $porEspera($paraLlevar->whereIn('status', ['open', 'kitchen'])->concat($enCocina), ['kitchen']),
                 ],
                 'ready' => [
                     'titulo'  => 'Listos',
-                    'pedidos' => $paraLlevar->where('status', 'ready')->concat($servir),
+                    'estados' => ['ready'],
+                    'pedidos' => $porEspera($paraLlevar->where('status', 'ready')->concat($servir), ['ready']),
                 ],
                 'on_route' => [
                     'titulo'  => 'En viaje',
-                    'pedidos' => $paraLlevar->where('status', 'on_route'),
+                    'estados' => [],
+                    'pedidos' => $porEspera($paraLlevar->where('status', 'on_route'), []),
                 ],
             ],
             'repartidores' => User::where('role', 'repartidor')->where('active', true)->get(),
@@ -84,6 +80,66 @@ class PedidoController extends Controller
                 ->where('status', 'paid')
                 ->whereDate('created_at', today()),
         ]);
+    }
+
+    /**
+     * ¿Cambió algo en el tablero desde que se cargó?
+     *
+     * El tablero no se recarga solo: recargar te sube al principio y te saca
+     * del pedido que estabas mirando. En cambio pregunta esto cada tanto y,
+     * si la firma no coincide, marca el botón «Actualizar». Ver D-18.
+     */
+    public function firmaTablero(): JsonResponse
+    {
+        [$paraLlevar, $enSalon] = $this->enCurso(['items:id,order_id,status', 'delivery']);
+
+        return response()->json(['firma' => $this->firma($paraLlevar->concat($enSalon))]);
+    }
+
+    /**
+     * Lo que muestra el tablero: delivery y retiro en curso, y mesas o
+     * mostrador con algo pasando por cocina.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function enCurso(array $relaciones): array
+    {
+        $paraLlevar = Order::query()
+            ->whereIn('type', ['delivery', 'retiro'])
+            ->whereIn('status', ['open', 'kitchen', 'ready', 'on_route'])
+            ->with($relaciones)
+            ->orderBy('created_at')
+            ->get();
+
+        $enSalon = Order::query()
+            ->whereIn('type', ['mesa_pool', 'mesa_salon', 'mostrador'])
+            ->where('status', 'open')
+            ->whereHas('items', fn ($q) => $q->whereIn('status', ['kitchen', 'ready']))
+            ->with($relaciones)
+            ->orderBy('created_at')
+            ->get();
+
+        return [$paraLlevar, $enSalon];
+    }
+
+    /**
+     * Resumen de todo lo que el tablero dibuja: qué pedidos hay, en qué estado
+     * está cada uno y cada ítem, quién lo lleva y cómo paga. No se usa
+     * `updated_at`: pasar un pedido y volverlo atrás lo toca sin que cambie nada.
+     */
+    private function firma(\Illuminate\Support\Collection $pedidos): string
+    {
+        return md5(json_encode($pedidos
+            ->sortBy('id')
+            ->map(fn (Order $o) => [
+                $o->id,
+                $o->status,
+                $o->total,
+                $o->items->sortBy('id')->pluck('status', 'id'),
+                $o->delivery?->driver_id,
+                $o->delivery?->payment_method,
+            ])
+            ->values()));
     }
 
     /**

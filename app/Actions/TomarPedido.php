@@ -82,7 +82,13 @@ class TomarPedido
             Delivery::create([
                 'order_id'       => $orden->id,
                 'customer_id'    => $cliente->id,
+                // Copiados, no referenciados: la ficha del cliente la comparten
+                // todos sus pedidos y se pisa con el próximo que se tome.
+                'customer_name'  => $cliente->name,
+                'customer_phone' => $cliente->phone,
                 'address_id'     => $direccion?->id,
+                'street'         => $direccion?->street,
+                'address_detail' => $direccion?->detail,
                 'zone_id'        => $zona?->id,
                 'fee'            => $envio,
                 'payment_method' => $metodoPago,
@@ -122,7 +128,12 @@ class TomarPedido
         });
     }
 
-    /** El teléfono identifica al cliente: si existe se actualiza, si no se crea (R-14). */
+    /**
+     * El teléfono identifica al cliente: si existe se actualiza, si no se crea (R-14).
+     *
+     * Actualizar el nombre sólo cambia lo que se sugiere la próxima vez: los
+     * pedidos ya tomados guardan el suyo.
+     */
     private function cliente(string $telefono, ?string $nombre): Customer
     {
         $limpio = preg_replace('/\D/', '', $telefono);

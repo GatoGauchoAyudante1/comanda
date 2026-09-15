@@ -38,6 +38,7 @@ class Ayuda
         'receta'        => 'recetas',
         'conteo'        => 'stock',
         'caja.cierre'   => 'caja',
+        'pedidos-online.mostrar' => 'pedidos-online',
     ];
 
     /**
@@ -218,10 +219,11 @@ class Ayuda
                     'ruta'   => 'configuracion',
                     'ancla'  => '#modulos',
                     'roles'  => ['dueno'],
-                    'alias'  => 'modulo módulos salon pool delivery stock prender apagar activar',
+                    'alias'  => 'modulo módulos salon pool delivery stock pedidos online prender apagar activar plan bloqueado contratar',
                     'pasos'  => [
                         'Ajustes → Módulos.',
                         'El switch de cada uno lo muestra o lo esconde en todo el sistema.',
+                        'Los que dicen «Bloqueado» no están incluidos en tu plan: para usarlos hay que contratarlos.',
                     ],
                     'nota' => 'Apagar un módulo no borra nada: mesas, pedidos y datos siguen guardados y vuelven a aparecer si lo prendés.',
                 ],
@@ -535,6 +537,43 @@ class Ayuda
                         'Al volver, tocá «Rendir caja» y cargá cuánto entregás.',
                     ],
                     'nota' => 'Sólo ves y entregás tus propios envíos.',
+                ],
+            ],
+
+            'Pedidos online' => [
+                [
+                    'titulo' => 'Recibir pedidos de los clientes por un link',
+                    'donde'  => 'Ajustes → Pedidos online',
+                    'ruta'   => 'configuracion',
+                    'ancla'  => '#pedidos-online',
+                    // Se configura en Ajustes, pero la duda nace mirando la lista.
+                    'aqui'   => ['configuracion', 'pedidos-online'],
+                    'roles'  => ['dueno'],
+                    'modulo' => 'pedidos_online',
+                    'alias'  => 'pedido pedidos online web link qr cliente celular whatsapp instagram compartir cómo entran como entran carrito',
+                    'pasos'  => [
+                        'Ajustes → Pedidos online.',
+                        'Copiá el link y compartilo por WhatsApp o Instagram. Al lado está el código QR para escanear.',
+                        'El cliente abre el link, arma el pedido con la carta y elige delivery o retiro. No necesita usuario.',
+                        'El pedido llega a «Pedidos online», en el menú de la izquierda.',
+                    ],
+                    'nota' => 'Muestra los mismos productos, precios y fotos de la Carta, y el envío de las Zonas de envío. Un producto que no querés que pidan, desactivalo en la Carta.',
+                ],
+                [
+                    'titulo' => 'Confirmar o rechazar un pedido online',
+                    'donde'  => 'Pedidos online',
+                    'ruta'   => 'pedidos-online',
+                    'roles'  => ['cajero'],
+                    'modulo' => 'pedidos_online',
+                    'alias'  => 'pedido pedidos online confirmar aceptar rechazar whatsapp cliente web demora minutos',
+                    'pasos'  => [
+                        'Entrá a «Pedidos online»: están los que todavía nadie respondió, el más viejo primero.',
+                        'Tocá «Revisar pedido» para ver productos, dirección y cómo paga.',
+                        'Para aceptarlo: cargá la demora estimada en minutos y tocá «Confirmar y abrir WhatsApp». Pasa a cocina y al tablero de Pedidos.',
+                        'Para rechazarlo: escribí el motivo y tocá «Rechazar y abrir WhatsApp».',
+                        'En los dos casos el mensaje se puede retocar antes, y WhatsApp se abre con el texto listo para mandar.',
+                    ],
+                    'nota' => 'Confirmar necesita la caja abierta. Hasta que lo confirmás el pedido no existe para cocina ni para la caja.',
                 ],
             ],
 

@@ -37,6 +37,10 @@
 @endsection
 
 @section('contenido')
+
+{{-- Va arriba de todo y sólo para el dueño. Ver partials/aviso-licencia.blade.php. --}}
+@include('partials.aviso-licencia')
+
 @php
     $tarifaPorDefecto = $tarifas->firstWhere('is_default', true)?->id ?? $tarifas->first()?->id ?? 0;
     // Si el que está operando es mozo, se preselecciona a sí mismo.

@@ -7,7 +7,6 @@ use App\Models\Category;
 use App\Models\OnlineOrder;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\Setting;
 use App\Models\User;
 use App\Support\Negocio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,8 +20,7 @@ class PedidoOnlineTest extends TestCase
     {
         parent::setUp();
 
-        Setting::create(['key' => 'menu.public', 'value' => '1', 'type' => 'bool']);
-        Setting::create(['key' => 'modules.delivery', 'value' => '1', 'type' => 'bool']);
+        config(['negocio.modulos.delivery' => true, 'negocio.modulos.pedidos_online' => true]);
         Negocio::olvidar();
     }
 

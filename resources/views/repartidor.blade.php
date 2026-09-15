@@ -34,10 +34,10 @@
                 </div>
 
                 <div class="mt12">
-                    <div class="fs17 fw5">{{ $e->address?->street ?? 'Sin dirección' }}</div>
+                    <div class="fs17 fw5">{{ $e->street ?? 'Sin dirección' }}</div>
                     <div class="fs13 t-mute mt4">
-                        @if ($e->address?->detail) {{ $e->address->detail }} · @endif
-                        {{ $e->zone?->name }} · {{ $e->customer?->name }}
+                        @if ($e->address_detail) {{ $e->address_detail }} · @endif
+                        {{ $e->zone?->name }} · {{ $e->nombreCliente() }}
                     </div>
                     @if ($orden->notes)
                         <div class="fs13 t-amber mt4">{{ $orden->notes }}</div>
@@ -63,8 +63,8 @@
                 </div>
 
                 <div class="flex g10 mt16">
-                    @if ($e->customer?->phone)
-                        <a class="btn grow" href="tel:{{ $e->customer->phone }}">
+                    @if ($e->telefonoCliente())
+                        <a class="btn grow" href="tel:{{ $e->telefonoCliente() }}">
                             <x-icono nombre="phone" />Llamar
                         </a>
                     @endif

@@ -34,6 +34,12 @@ return [
     'string'      => ':Attribute tiene que ser texto.',
     'unique'      => ':Attribute ya está en uso.',
 
+    'between' => [
+        'array'   => ':Attribute tiene que tener entre :min y :max elementos.',
+        'numeric' => ':Attribute tiene que estar entre :min y :max.',
+        'string'  => ':Attribute tiene que tener entre :min y :max caracteres.',
+    ],
+
     'min' => [
         'array'   => ':Attribute tiene que tener al menos :min elementos.',
         'file'    => ':Attribute tiene que pesar al menos :min kilobytes.',
@@ -95,6 +101,19 @@ return [
         'min_stock'       => 'el stock mínimo',
         'area'            => 'el área',
         'lineas'          => 'los productos',
+
+        // Abono mensual del sistema (/dev-panel).
+        'key'             => 'la clave',
+        'monthly_amount'  => 'el importe mensual',
+        'notice_day'      => 'el día de aviso',
+        'due_day'         => 'el día de vencimiento',
+        'due_date'        => 'el vencimiento',
+        'payee'           => 'quién cobra',
+        'payment_alias'   => 'el alias',
+        'payment_method'  => 'el medio de pago',
+        'contact_phone'   => 'el teléfono de contacto',
+        'notes'           => 'las notas',
+        'enabled'         => 'el aviso',
     ],
 
     'custom' => [

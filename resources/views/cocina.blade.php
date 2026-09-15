@@ -94,7 +94,7 @@
             <div class="kds">
                 @foreach ($comandas as $orden)
                     @php
-                        $minutos  = (int) $orden->created_at->diffInMinutes(now());
+                        $minutos  = (int) $orden->esperaDesde()->diffInMinutes(now());
                         $urgencia = $minutos >= 30 ? 'late' : ($minutos >= 15 ? 'warn' : 'ok');
 
                         $origen = match ($orden->type) {

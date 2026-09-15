@@ -25,6 +25,31 @@ class Delivery extends Model
     public function zone(): BelongsTo     { return $this->belongsTo(Zone::class); }
     public function driver(): BelongsTo   { return $this->belongsTo(User::class, 'driver_id'); }
 
+    /*
+     | A quién y adónde, como se tomó el pedido. Se lee de las columnas propias
+     | y no de la ficha del cliente, que se comparte entre todos sus pedidos y
+     | cambia con cada alta. Ver la migración add_datos_del_cliente_to_deliveries.
+     */
+
+    public function nombreCliente(): ?string
+    {
+        return $this->customer_name;
+    }
+
+    public function telefonoCliente(): ?string
+    {
+        return $this->customer_phone;
+    }
+
+    public function direccionCompleta(): ?string
+    {
+        if (! $this->street) {
+            return null;
+        }
+
+        return trim($this->street . ($this->address_detail ? ', ' . $this->address_detail : ''));
+    }
+
     /** Cuánto cambio tiene que llevar el repartidor. */
     public function vuelto(): int
     {

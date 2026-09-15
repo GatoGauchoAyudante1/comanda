@@ -18,12 +18,17 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
+/**
+ * Pedidos que hace el cliente desde su celular, y la respuesta del local.
+ *
+ * Todo el controlador vive detrás del módulo `pedidos_online` (ver
+ * routes/web.php): no depende de publicar la carta, porque prender el módulo
+ * ya es la decisión de mostrar los precios.
+ */
 class PedidoOnlineController extends Controller
 {
     public function carta(): View
     {
-        abort_unless(Negocio::cartaPublica() && Negocio::modulo('delivery'), 404);
-
         return view('pedidos-online.carta', [
             'negocio' => Negocio::nombre(),
             'mensaje' => Negocio::cartaMensaje(),
@@ -33,8 +38,6 @@ class PedidoOnlineController extends Controller
 
     public function checkout(Request $request): View
     {
-        abort_unless(Negocio::cartaPublica() && Negocio::modulo('delivery'), 404);
-
         $lineas = $this->validarLineas($request);
 
         return view('pedidos-online.checkout', [
@@ -47,8 +50,6 @@ class PedidoOnlineController extends Controller
 
     public function guardar(Request $request): RedirectResponse
     {
-        abort_unless(Negocio::cartaPublica() && Negocio::modulo('delivery'), 404);
-
         $datos = $request->validate([
             'type' => ['required', 'in:delivery,retiro'],
             'telefono' => ['required', 'string', 'max:40'],
@@ -108,6 +109,9 @@ class PedidoOnlineController extends Controller
         return view('pedidos-online.index', [
             'pedidos' => OnlineOrder::where('status', 'pending')
                 ->with(['items', 'zone'])->oldest()->get(),
+            // El link se muestra acá también: es la pantalla que abre el que
+            // atiende cuando un cliente pregunta «¿por dónde pido?».
+            'link' => route('pedido-online'),
         ]);
     }
 

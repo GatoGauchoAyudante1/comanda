@@ -44,6 +44,29 @@ class Order extends Model
     }
 
     /**
+     * Desde cuándo espera este pedido, para medir la demora y ordenar.
+     *
+     * En delivery y retiro es el alta: todo entra junto. En una mesa no: la
+     * cuenta se abre al sentarse y la comida se pide después, en tandas. Ahí
+     * cuenta la tanda más vieja que todavía no salió (`$estados`); si no, una
+     * mesa abierta hace dos horas figuraría con 120 min por un café recién pedido.
+     *
+     * Usa los ítems ya cargados: filtrarlos es cosa de quien los trae.
+     */
+    public function esperaDesde(array $estados = ['kitchen']): \Carbon\CarbonInterface
+    {
+        if (! $this->esMesa() && $this->type !== 'mostrador') {
+            return $this->created_at;
+        }
+
+        return $this->items
+            ->whereIn('status', $estados)
+            ->map(fn (OrderItem $i) => $i->sent_to_kitchen_at ?? $i->created_at)
+            ->filter()
+            ->min() ?? $this->created_at;
+    }
+
+    /**
      * Correlativo por día operativo. El día operativo es la fecha en que abrió
      * el turno de caja, no la fecha calendario: un turno que arranca a las 19:00
      * y cierra a las 03:00 es un solo día. Ver docs/09-pendientes.md · T-03.
